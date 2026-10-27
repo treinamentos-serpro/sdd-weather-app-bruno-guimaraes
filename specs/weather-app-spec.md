@@ -100,6 +100,22 @@ orientação quando não houver resultados. Cada operação deve comunicar
 carregamento, sucesso com dados, vazio ou falha; uma resposta obsoleta não pode
 alterar o estado da operação mais recente.
 
+#### Recorte de UI com dados mock
+
+Antes da integração com a API, a tela compõe marca, busca e controle de unidade
+no header, condições atuais e previsão de cinco dias. Inicia em `success` com
+São Paulo e Celsius. Um seletor de demonstração permite alternar explicitamente
+entre `idle`, `loading`, `empty`, `error` e `success`, sem timers ou rede.
+O estado inicial de consulta (`idle`) orienta a busca; `empty` comunica ausência
+de cidades. Somente `success` exibe os dados meteorológicos.
+
+A interface informa que os dados são fictícios e fixos: enviar uma busca válida
+ou tentar novamente apenas retorna ao mock de São Paulo, independentemente do
+texto informado. A busca fica desabilitada em `loading`, mas o seletor permite
+sair desse estado. A unidade permanece disponível em todos os estados, não é
+reiniciada nas transições e converte temperaturas apenas durante a apresentação.
+Este recorte não conclui os fluxos reais de busca, seleção ou retry de FR-01/05.
+
 ## User Stories
 
 As personas abaixo são hipóteses de discovery e devem ser validadas com

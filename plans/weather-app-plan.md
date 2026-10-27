@@ -146,6 +146,26 @@ com a API continuam na composição de resultados e nas tarefas correspondentes.
 
 ## Data Model
 
+### Composição demonstrativa de App
+
+`App` mantém somente o estado visual (`idle | loading | empty | error | success`)
+e `unit: Unit` (inicialmente Celsius). Importa `mockWeatherData` sem copiar ou
+converter os valores armazenados. Reutiliza `SearchBar`, `UnitToggle`,
+`CurrentWeather`, `ForecastList` e os componentes de estado existentes.
+
+Um seletor nativo rotulado controla os cenários, iniciando em `success`.
+Busca válida e retry selecionam `success`; um aviso visível explica que ambos
+mostram sempre São Paulo, sem consultar o texto informado ou acessar a rede.
+Loading desabilita a busca, não o seletor nem o controle de unidade.
+`CurrentWeather` e `ForecastList` recebem a mesma unidade e fazem a conversão
+na renderização pelos utilitários existentes. As transições não alteram a unidade.
+
+O header responsivo contém marca, busca e toggle; o conteúdo principal alterna
+os cenários sem manter resultados obsoletos visíveis. `main.tsx` monta `App`
+em StrictMode e importa `index.css` com as diretivas Tailwind e o tema global.
+Testes de composição verificam os cinco estados, busca, retry, bloqueio durante
+loading e conversão de todas as temperaturas sem mutação do mock.
+
 `ForecastList` recebe `forecast: ForecastDay[]` e `unit: Unit` e renderiza uma
 seção “Previsão de 5 dias” com lista ordenada no grid
 `grid-cols-2 sm:grid-cols-3 lg:grid-cols-5`. Cada `ForecastCard` recebe `day`,

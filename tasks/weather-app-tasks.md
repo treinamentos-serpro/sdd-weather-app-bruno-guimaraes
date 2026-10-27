@@ -400,6 +400,15 @@ requisito funcional sem tarefa correspondente.
 
 ### T-26 — Integrar o fluxo completo na aplicação
 
+- **Recorte de UI mock (pré-integração):** Montar header com marca, SearchBar e
+  UnitToggle e conteúdo com CurrentWeather, ForecastList e estados existentes.
+  Iniciar em `success` com São Paulo; disponibilizar seletor acessível para
+  `idle/loading/empty/error/success`, com aviso de dados fixos e fictícios.
+  Busca válida e retry retornam ao mock; loading desabilita a busca, mas permite
+  sair pelo seletor. Manter unidade como estado de UI em todas as transições e
+  converter todas as temperaturas somente na renderização, sem mutar o mock.
+  Incluir bootstrap e tema de T-02/T-03 e testes de composição dos cenários.
+  Este recorte não conclui a integração real nem suas dependências de rede/hook.
 - **Descrição:** Conectar hook, busca, resultados e unidade pelo componente
   raiz da aplicação.
 - **Critérios de aceite:**

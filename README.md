@@ -119,6 +119,14 @@ descrições em pt-BR. As datas são fixas para manter o desenvolvimento e os
 testes determinísticos: não representam dados reais ou atualizados. A previsão
 começa na data de `current.sourceLocalTime`, não na data do dispositivo.
 
+Execute `pnpm dev` para abrir a tela demonstrativa. Ela inicia com o mock de
+São Paulo e permite alternar os cinco estados pelo seletor “Estado da
+demonstração”. Buscar ou tentar novamente sempre mostra esse mesmo mock,
+independentemente do texto digitado; não há chamadas de rede. Durante loading,
+a busca fica desabilitada, mas o seletor e a troca de unidade continuam ativos.
+A unidade é preservada nas transições, convertendo somente as temperaturas
+exibidas. A busca real e a integração com Open-Meteo ficam para a próxima etapa.
+
 ---
 
 ## Stack
