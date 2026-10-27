@@ -240,6 +240,10 @@ requisito funcional sem tarefa correspondente.
     classificados como erros recuperáveis apropriados.
 - **Dependências:** T-01, T-05.
 - **Arquivos prováveis:** `src/services/geocodingService.ts`.
+- **Implementação parcial:** `searchCities` em `src/services/weatherService.ts`
+  cobre consulta aparada e codificada, entrada vazia sem rede, mapeamento para
+  `City[]` e `WeatherServiceError` para HTTP não-ok ou estrutura inválida.
+  Timeout e classificação de falhas de rede permanecem pendentes nesta tarefa.
 - **Tipo:** Data.
 - **Rastreabilidade:** FR-01, FR-05; AC-01.4, AC-01.6, AC-05.2 a AC-05.5.
 
