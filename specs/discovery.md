@@ -29,13 +29,19 @@ Os critérios quantitativos abaixo são propostas iniciais para validação; o b
 
 ## Riscos
 
-- **Dependência de dados externos:** indisponibilidade, limites de uso ou mudanças na fonte meteorológica podem impedir consultas.
-- **Ambiguidade na busca:** nomes iguais ou semelhantes podem levar à seleção da cidade errada sem contexto adicional, como estado ou país.
-- **Atualidade dos dados:** sem uma política de atualização e indicação de horário, usuários podem interpretar dados desatualizados como atuais.
-- **Diferenças de fuso horário:** a previsão diária pode ser agrupada incorretamente se o fuso da cidade não for considerado.
-- **Escopo móvel indefinido:** “usar em dispositivos móveis” pode significar apenas um site responsivo ou também uma aplicação instalável.
-- **Dependência de localização:** se localização automática for incluída, permissões e tratamento de dados de localização precisam ser definidos.
-- **Expectativas não especificadas:** não há definição sobre unidades de outras grandezas, idioma, localização automática ou persistência de preferências.
+As probabilidades abaixo são estimativas iniciais. Público, fonte de dados e critérios de aceite ainda precisam ser confirmados.
+
+| Risco | Tipo | Probabilidade | Impacto | Estratégia de mitigação |
+|---|---|---|---|---|
+| Indisponibilidade, lentidão ou limites da API meteorológica | Técnico | Média | Consultas podem falhar ou demorar, prejudicando a experiência. | Confirmar cobertura, licença e limites da fonte; monitorar latência e falhas; definir timeouts, mensagens de erro, nova tentativa e, se apropriado, cache com indicação de dados antigos. |
+| Usuário selecionar a cidade errada entre resultados homônimos | Produto | Alta | O app pode mostrar informações corretas para o local errado, sem que isso seja evidente. | Exibir contexto nos resultados, como país e estado/região; definir tratamento para nomes parciais, acentos e busca sem resultados. |
+| Dados antigos ou interpretação equivocada da previsão | Produto/Técnico | Média | Usuários podem tomar decisões com dados defasados ou entender estimativas como garantias. | Definir frequência e idade máxima dos dados; mostrar horário da última atualização e sinalizar dados desatualizados; comunicar limitações da previsão. |
+| Agrupamento incorreto dos cinco dias por fuso horário ou horário de verão | Técnico | Média | Previsões podem aparecer no dia errado, especialmente para cidades em outros fusos. | Usar o fuso da cidade para agrupar os dados; definir se “cinco dias” significa dias civis locais ou períodos de 24 horas; testar mudanças de data e horário de verão. |
+| Escopo do produto e expectativas de uso não definidos | Produto | Alta | A equipe pode construir uma experiência inadequada ao público ou deixar de incluir capacidades esperadas. | Confirmar usuários prioritários, objetivo e critério de sucesso; decidir se o produto será site responsivo, PWA ou app nativo; explicitar se recursos como alertas e favoritos fazem parte do escopo. |
+| Metas de desempenho e disponibilidade sem definição de medição | Técnico/Produto | Média | Metas propostas podem não ser verificáveis ou não refletir a experiência real, inclusive quando a API externa falhar. | Aprovar condições e método de medição; acompanhar separadamente aplicação e fonte externa; estabelecer monitoramento e procedimentos de resposta a incidentes. |
+| Unidades, idioma e localização inconsistentes com o público | Produto | Média | Formatos ou unidades inesperados podem confundir usuários e reduzir a confiança. | Definir região e idiomas suportados, unidade inicial e persistência da preferência; especificar conversão e apresentação das demais grandezas meteorológicas. |
+| Barreiras de acessibilidade ou incompatibilidade em dispositivos e navegadores | Técnico/Produto | Média | Parte dos usuários pode não conseguir buscar ou interpretar a previsão. | Definir navegadores suportados; validar teclado, foco, contraste, nomes acessíveis e estados dinâmicos; testar responsividade a partir da largura mínima proposta. |
+| Coleta de localização ou outros dados sem expectativa clara do usuário | Produto/Técnico | Baixa/Média | Pode afetar a confiança e criar riscos de privacidade, especialmente se GPS for adicionado. | Manter busca manual como alternativa; se usar GPS, pedir permissão com contexto, limitar a coleta ao necessário e documentar finalidade, retenção e tratamento dos dados. |
 
 ## Perguntas em Aberto
 
