@@ -1,16 +1,26 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../src/App';
 import { mockWeatherData } from '../../src/mocks/weather';
+import { getWeather, searchCities } from '../../src/services/weatherService';
+import type { WeatherData } from '../../src/types/weather';
 
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
+vi.mock('../../src/services/weatherService', () => ({
+  searchCities: vi.fn(),
+  getWeather: vi.fn(),
+}));
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(searchCities).mockResolvedValue([mockWeatherData.city]);
+  vi.mocked(getWeather).mockResolvedValue(mockWeatherData);
 });
 
+afterEach(cleanup);
+
 describe('App', () => {
-  it('compõe marca, busca, unidade e dados mock em Celsius inicialmente', () => {
+  it('inicia em idle com busca e Celsius, sem dados ou controles de demonstração', () => {
     render(<App />);
 
     expect(screen.getByRole('heading', { name: 'WeatherView', level: 1 })).toBeVisible();
@@ -19,70 +29,125 @@ describe('App', () => {
       'aria-pressed',
       'true',
     );
-    expect(screen.getByRole('combobox', { name: 'Estado da demonstração' })).toHaveValue('success');
-    expect(screen.getByRole('complementary')).toHaveTextContent('dados fictícios e fixos');
+    expect(screen.getByText('Consulte o clima de uma cidade')).toBeVisible();
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(searchCities).not.toHaveBeenCalled();
+    expect(getWeather).not.toHaveBeenCalled();
+  });
+
+  it('valida consultas vazias e apresenta os dados retornados para a cidade buscada', async () => {
+    const city = { ...mockWeatherData.city, name: 'Recife', latitude: -8.05, longitude: -34.88 };
+    vi.mocked(searchCities).mockResolvedValue([city]);
+    vi.mocked(getWeather).mockResolvedValue({ ...mockWeatherData, city });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole('button', { name: 'Buscar' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Digite o nome de uma cidade');
+    expect(searchCities).not.toHaveBeenCalled();
+
+    await user.type(screen.getByRole('searchbox'), '  Recife  {Enter}');
+    expect(await screen.findByRole('heading', { name: 'Recife' })).toBeVisible();
+    expect(searchCities).toHaveBeenCalledExactlyOnceWith('Recife');
+    expect(getWeather).toHaveBeenCalledExactlyOnceWith(city);
     expect(screen.getByLabelText('Temperatura: 25 °C')).toBeVisible();
     expect(screen.getAllByRole('listitem')).toHaveLength(5);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByText('Consulte o clima de uma cidade')).not.toBeInTheDocument();
+  });
+
+  it('bloqueia a busca durante loading, oculta dados anteriores e mantém a unidade disponível', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
+    expect(await screen.findByRole('heading', { name: 'São Paulo' })).toBeVisible();
+
+    let resolveWeather!: (data: WeatherData) => void;
+    vi.mocked(getWeather).mockReturnValueOnce(
+      new Promise<WeatherData>((resolve) => {
+        resolveWeather = resolve;
+      }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Buscar' }));
+
+    expect(screen.getByText('Carregando...')).toBeVisible();
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('searchbox')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Buscar' })).toBeDisabled();
+    expect(screen.queryByRole('heading', { name: 'São Paulo' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
+    await act(async () => resolveWeather(mockWeatherData));
+
+    expect(screen.getByLabelText('Temperatura: 76 °F')).toBeVisible();
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
+    expect(screen.getByRole('searchbox')).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Buscar' })).toBeEnabled();
+  });
+
+  it('apresenta empty sem resultados anteriores e permite uma nova busca', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
+    expect(await screen.findByRole('list')).toBeVisible();
+
+    vi.mocked(searchCities).mockResolvedValueOnce([]);
+    await user.clear(screen.getByRole('searchbox'));
+    await user.type(screen.getByRole('searchbox'), 'Cidade inexistente{Enter}');
+
+    expect(await screen.findByText('Nenhuma cidade encontrada')).toBeVisible();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tentar novamente' })).not.toBeInTheDocument();
+    expect(getWeather).toHaveBeenCalledTimes(1);
+
+    await user.type(screen.getByRole('searchbox'), '{Enter}');
+    expect(await screen.findByRole('list')).toBeVisible();
+    expect(screen.queryByText('Nenhuma cidade encontrada')).not.toBeInTheDocument();
   });
 
   it.each([
-    ['idle', 'Consulte o clima de uma cidade'],
-    ['loading', 'Carregando...'],
-    ['empty', 'Nenhuma cidade encontrada'],
-    ['error', 'Não foi possível obter os dados meteorológicos.'],
-  ])('alterna para %s sem manter resultados visíveis', async (status, message) => {
+    'search',
+    'weather',
+  ] as const)('exibe o erro de %s e repete somente a operação que falhou ao tentar novamente', async (operation) => {
+    if (operation === 'search') {
+      vi.mocked(searchCities).mockRejectedValueOnce(new Error('Falha ao buscar cidades.'));
+    } else {
+      vi.mocked(getWeather).mockRejectedValueOnce(new Error('Falha ao consultar previsão.'));
+    }
     const user = userEvent.setup();
     render(<App />);
-
-    await user.selectOptions(screen.getByRole('combobox'), status);
-
-    expect(screen.getByText(message)).toBeVisible();
-    expect(screen.queryByRole('heading', { name: 'São Paulo' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('list')).not.toBeInTheDocument();
-    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', String(status === 'loading'));
-
-    await user.selectOptions(screen.getByRole('combobox'), 'success');
-    expect(screen.getByRole('heading', { name: 'São Paulo' })).toBeVisible();
-  });
-
-  it('bloqueia a busca durante loading, mantendo seletor e unidade disponíveis', async () => {
-    const user = userEvent.setup();
-    render(<App />);
-    await user.selectOptions(screen.getByRole('combobox'), 'loading');
-
-    expect(screen.getByRole('searchbox')).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Buscar' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
-    await user.selectOptions(screen.getByRole('combobox'), 'success');
+    await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
 
-    expect(screen.getByRole('searchbox')).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Buscar' })).toBeEnabled();
-    expect(screen.getByLabelText('Temperatura: 76 °F')).toBeVisible();
-  });
-
-  it('retorna ao mock em buscas válidas e no retry sem consultar a rede', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    const user = userEvent.setup();
-    render(<App />);
-    await user.selectOptions(screen.getByRole('combobox'), 'idle');
-    await user.click(screen.getByRole('button', { name: 'Buscar' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('Digite o nome de uma cidade');
-    expect(screen.getByRole('combobox')).toHaveValue('idle');
-
-    await user.type(screen.getByRole('searchbox'), 'Recife{Enter}');
-    expect(screen.getByRole('heading', { name: 'São Paulo' })).toBeVisible();
-
-    await user.selectOptions(screen.getByRole('combobox'), 'error');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      operation === 'search' ? 'Falha ao buscar cidades.' : 'Falha ao consultar previsão.',
+    );
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
+    expect(searchCities).toHaveBeenCalledTimes(1);
+    expect(getWeather).toHaveBeenCalledTimes(operation === 'search' ? 0 : 1);
+    await user.clear(screen.getByRole('searchbox'));
+    await user.type(screen.getByRole('searchbox'), 'Outro nome');
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
-    expect(screen.getByRole('heading', { name: 'São Paulo' })).toBeVisible();
+
+    expect(await screen.findByLabelText('Temperatura: 76 °F')).toBeVisible();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(searchCities).toHaveBeenCalledTimes(operation === 'search' ? 2 : 1);
+    expect(searchCities).toHaveBeenLastCalledWith('São Paulo');
+    expect(getWeather).toHaveBeenCalledTimes(operation === 'search' ? 1 : 2);
+    expect(getWeather).toHaveBeenLastCalledWith(mockWeatherData.city);
   });
 
-  it('converte temperaturas atuais e dos cinco dias sem mutar o mock ou perder a unidade', async () => {
+  it('converte temperaturas atuais e dos cinco dias sem mutar dados ou fazer novas requisições', async () => {
     const original = structuredClone(mockWeatherData);
     const user = userEvent.setup();
     render(<App />);
+    await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
+    expect(await screen.findByLabelText('Temperatura: 25 °C')).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
 
     expect(screen.getByLabelText('Temperatura: 76 °F')).toBeVisible();
@@ -100,17 +165,11 @@ describe('App', () => {
     });
     expect(screen.getByText('12,5 km/h')).toBeVisible();
 
-    await user.selectOptions(screen.getByRole('combobox'), 'empty');
-    await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
-    expect(screen.getByLabelText('Temperatura: 76 °F')).toBeVisible();
-
-    await user.selectOptions(screen.getByRole('combobox'), 'error');
-    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
-    expect(screen.getByLabelText('Temperatura: 76 °F')).toBeVisible();
-
     await user.click(screen.getByRole('button', { name: 'Graus Celsius' }));
     expect(screen.getByLabelText('Temperatura: 25 °C')).toBeVisible();
     expect(screen.getByText('28 °C')).toBeVisible();
+    expect(searchCities).toHaveBeenCalledTimes(1);
+    expect(getWeather).toHaveBeenCalledTimes(1);
     expect(mockWeatherData).toEqual(original);
   });
 });

@@ -119,13 +119,17 @@ descrições em pt-BR. As datas são fixas para manter o desenvolvimento e os
 testes determinísticos: não representam dados reais ou atualizados. A previsão
 começa na data de `current.sourceLocalTime`, não na data do dispositivo.
 
-Execute `pnpm dev` para abrir a tela demonstrativa. Ela inicia com o mock de
-São Paulo e permite alternar os cinco estados pelo seletor “Estado da
-demonstração”. Buscar ou tentar novamente sempre mostra esse mesmo mock,
-independentemente do texto digitado; não há chamadas de rede. Durante loading,
-a busca fica desabilitada, mas o seletor e a troca de unidade continuam ativos.
-A unidade é preservada nas transições, convertendo somente as temperaturas
-exibidas. A busca real e a integração com Open-Meteo ficam para a próxima etapa.
+Execute `pnpm dev` para abrir a aplicação integrada ao
+[useWeather](src/hooks/useWeather.ts). A tela inicia em `idle`, orientando a
+busca, e consulta a Open-Meteo após o envio de uma cidade. O hook carrega
+automaticamente a previsão da primeira localidade encontrada; a seleção manual
+entre localidades ainda não faz parte deste recorte. A tela apresenta loading,
+vazio, erro ou os dados retornados, sem seletor de demonstração nem mock em
+produção. “Tentar novamente” repete a etapa que falhou com os mesmos parâmetros.
+Durante loading, a busca fica desabilitada, mas a troca de unidade continua
+ativa. A unidade é preservada nas transições e converte somente as temperaturas
+exibidas, sem novas requisições. Os mocks continuam disponíveis para desenvolver
+componentes e para testes sem rede real.
 
 ---
 

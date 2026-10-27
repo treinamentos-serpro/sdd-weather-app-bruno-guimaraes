@@ -146,25 +146,28 @@ com a API continuam na composição de resultados e nas tarefas correspondentes.
 
 ## Data Model
 
-### Composição demonstrativa de App
+### Composição de App integrada ao hook
 
-`App` mantém somente o estado visual (`idle | loading | empty | error | success`)
-e `unit: Unit` (inicialmente Celsius). Importa `mockWeatherData` sem copiar ou
-converter os valores armazenados. Reutiliza `SearchBar`, `UnitToggle`,
-`CurrentWeather`, `ForecastList` e os componentes de estado existentes.
+`App` consome `status`, `data`, `error`, `search` e `retry` de `useWeather`.
+Mantém apenas `unit: Unit` (inicialmente Celsius) como estado local de UI.
+Não importa mocks nem oferece seletor demonstrativo. Reutiliza `SearchBar`,
+`UnitToggle`, `CurrentWeather`, `ForecastList` e os componentes de estado.
 
-Um seletor nativo rotulado controla os cenários, iniciando em `success`.
-Busca válida e retry selecionam `success`; um aviso visível explica que ambos
-mostram sempre São Paulo, sem consultar o texto informado ou acessar a rede.
-Loading desabilita a busca, não o seletor nem o controle de unidade.
-`CurrentWeather` e `ForecastList` recebem a mesma unidade e fazem a conversão
-na renderização pelos utilitários existentes. As transições não alteram a unidade.
+`SearchBar.onSearch` encaminha a consulta ao hook; `ErrorState.onRetry` chama
+`retry` e apresenta a mensagem de erro recebida. A tela inicia em `idle` e
+loading desabilita a busca, não o controle de unidade. Somente `success` com
+dados apresenta condições atuais e previsão. `CurrentWeather` e `ForecastList`
+recebem os dados retornados e a mesma unidade, convertendo na renderização pelos
+utilitários existentes. As transições não alteram a unidade nem o toggle
+dispara requisições. A seleção automática da primeira cidade é o comportamento
+atual do hook; seleção manual e estados independentes são entregas posteriores.
 
 O header responsivo contém marca, busca e toggle; o conteúdo principal alterna
 os cenários sem manter resultados obsoletos visíveis. `main.tsx` monta `App`
 em StrictMode e importa `index.css` com as diretivas Tailwind e o tema global.
-Testes de composição verificam os cinco estados, busca, retry, bloqueio durante
-loading e conversão de todas as temperaturas sem mutação do mock.
+Testes de composição usam serviços simulados para verificar os cinco estados,
+busca, retry da etapa que falhou, bloqueio durante loading e conversão de todas
+as temperaturas sem mutação dos dados. E2E intercepta geocoding e forecast.
 
 `ForecastList` recebe `forecast: ForecastDay[]` e `unit: Unit` e renderiza uma
 seção “Previsão de 5 dias” com lista ordenada no grid

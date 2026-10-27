@@ -6,26 +6,12 @@ import EmptyState from './components/states/EmptyState';
 import ErrorState from './components/states/ErrorState';
 import LoadingState from './components/states/LoadingState';
 import UnitToggle from './components/UnitToggle';
-import { mockWeatherData } from './mocks/weather';
+import useWeather from './hooks/useWeather';
 import type { Unit } from './types/weather';
 
-const scenarios = [
-  { value: 'idle', label: 'Inicial' },
-  { value: 'loading', label: 'Carregando' },
-  { value: 'empty', label: 'Sem resultados' },
-  { value: 'error', label: 'Erro' },
-  { value: 'success', label: 'Sucesso' },
-] as const;
-
-type ViewStatus = (typeof scenarios)[number]['value'];
-
 export default function App() {
-  const [status, setStatus] = useState<ViewStatus>('success');
+  const { status, data, error, search, retry } = useWeather();
   const [unit, setUnit] = useState<Unit>('celsius');
-
-  function showMockWeather() {
-    setStatus('success');
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-night-900 via-night-800 to-night-900 font-sans text-white">
@@ -48,54 +34,23 @@ export default function App() {
               WeatherView
             </h1>
           </div>
-          <SearchBar onSearch={showMockWeather} disabled={status === 'loading'} />
+          <SearchBar onSearch={search} disabled={status === 'loading'} />
           <div className="justify-self-start lg:justify-self-end">
             <UnitToggle unit={unit} onChange={setUnit} />
           </div>
         </header>
-
-        <aside
-          aria-label="Demonstração com dados mock"
-          className="my-8 flex min-w-0 flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between"
-        >
-          <p className="max-w-xl text-sm text-slate-300">
-            Demonstração com dados fictícios e fixos, sem consulta à API. Buscar ou tentar novamente
-            sempre exibe São Paulo, independentemente do texto informado. Os dados não representam o
-            clima atual.
-          </p>
-          <div className="w-full min-w-0 sm:w-auto sm:shrink-0">
-            <label htmlFor="view-status" className="mb-2 block text-sm font-medium">
-              Estado da demonstração
-            </label>
-            <select
-              id="view-status"
-              value={status}
-              onChange={(event) => {
-                const scenario = scenarios.find((item) => item.value === event.target.value);
-                if (scenario) setStatus(scenario.value);
-              }}
-              className="w-full rounded-xl border border-white/10 bg-night-900 px-4 py-3 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
-            >
-              {scenarios.map((scenario) => (
-                <option key={scenario.value} value={scenario.value}>
-                  {scenario.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </aside>
 
         <main
           id="main-content"
           tabIndex={-1}
           aria-label="Condições meteorológicas"
           aria-busy={status === 'loading'}
-          className="space-y-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
+          className="mt-8 space-y-8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
         >
           {status === 'idle' && (
             <EmptyState
               title="Consulte o clima de uma cidade"
-              hint="Digite o nome de uma cidade e selecione Buscar para visualizar a demonstração."
+              hint="Digite o nome de uma cidade e selecione Buscar para consultar o clima."
             />
           )}
           {status === 'loading' && <LoadingState />}
@@ -107,18 +62,14 @@ export default function App() {
           )}
           {status === 'error' && (
             <ErrorState
-              message="Não foi possível obter os dados meteorológicos."
-              onRetry={showMockWeather}
+              message={error ?? 'Não foi possível obter os dados meteorológicos.'}
+              onRetry={retry}
             />
           )}
-          {status === 'success' && (
+          {status === 'success' && data && (
             <>
-              <CurrentWeather
-                city={mockWeatherData.city}
-                current={mockWeatherData.current}
-                unit={unit}
-              />
-              <ForecastList forecast={mockWeatherData.forecast} unit={unit} />
+              <CurrentWeather city={data.city} current={data.current} unit={unit} />
+              <ForecastList forecast={data.forecast} unit={unit} />
             </>
           )}
         </main>

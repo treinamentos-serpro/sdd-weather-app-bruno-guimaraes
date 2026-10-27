@@ -290,8 +290,8 @@ preserva a consulta e as opções. Retry repete a última etapa com os mesmos
 parâmetros (somente previsão quando o geocoding já terminou) e não duplica uma
 operação em andamento. Respostas obsoletas e posteriores à desmontagem são
 descartadas. Os testes estão em `tests/unit/useWeather.test.ts`. A integração
-com a página, os estados independentes e a unidade permanecem fora deste
-recorte; a demonstração com mocks não foi alterada.
+com a página está descrita no recorte de T-26; a unidade permanece como estado
+de UI no App. Os estados independentes permanecem fora deste recorte do hook.
 
 ### T-19 — Orquestrar busca, seleção, previsão e retry
 
@@ -430,6 +430,16 @@ recorte; a demonstração com mocks não foi alterada.
 
 ### T-26 — Integrar o fluxo completo na aplicação
 
+- **Recorte integrado com useWeather:** Substituir o mock e o seletor de
+  demonstração pelo hook existente. Iniciar em `idle`, conectar busca a
+  `search`, renderizar exclusivamente `idle/loading/empty/error/success` e
+  passar `data` aos componentes de apresentação em sucesso. Exibir a mensagem
+  de erro e conectar `ErrorState` a `retry`. Manter `unit` no App, preservada
+  entre estados e passada ao hero e à previsão; alternar sem nova requisição.
+  Bloquear a busca durante loading, mantendo a unidade disponível. Cobrir os
+  estados e o retry de busca/previsão com serviços simulados e adaptar o E2E
+  responsivo com interceptação da rede. Este recorte substitui o demonstrativo
+  abaixo; seleção manual e estados independentes ainda permanecem pendentes.
 - **Recorte de UI mock (pré-integração):** Montar header com marca, SearchBar e
   UnitToggle e conteúdo com CurrentWeather, ForecastList e estados existentes.
   Iniciar em `success` com São Paulo; disponibilizar seletor acessível para

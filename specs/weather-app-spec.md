@@ -116,6 +116,19 @@ sair desse estado. A unidade permanece disponível em todos os estados, não é
 reiniciada nas transições e converte temperaturas apenas durante a apresentação.
 Este recorte não conclui os fluxos reais de busca, seleção ou retry de FR-01/05.
 
+#### Integração de App com useWeather
+
+A integração substitui o recorte demonstrativo acima: a tela inicia em `idle`,
+sem dados mock ou seletor de estados, e encaminha a busca ao hook `useWeather`.
+Renderiza exclusivamente o estado corrente (`idle/loading/empty/error/success`),
+apresentando em sucesso as condições atuais e a previsão retornadas pelo hook.
+O erro apresenta a mensagem recebida e oferece retry da operação que falhou.
+A busca fica desabilitada durante loading; a unidade continua disponível,
+inicia em Celsius e é preservada em todas as transições, sem novas requisições
+ao alternar. Neste recorte, o hook consulta automaticamente a primeira cidade
+encontrada; a seleção manual e os estados independentes de busca/previsão
+permanecem pendentes para concluir FR-01.
+
 ## User Stories
 
 As personas abaixo são hipóteses de discovery e devem ser validadas com
