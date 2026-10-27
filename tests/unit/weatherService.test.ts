@@ -324,6 +324,29 @@ describe('searchCities', () => {
       ]);
     });
 
+    it('mantém precipitação null como null (Indisponível) e preserva zeros válidos', async () => {
+      mockResponse({
+        ...forecastResponse(),
+        current: { ...forecastResponse().current, precipitation: null },
+        daily: {
+          ...forecastResponse().daily,
+          precipitation_probability_max: [null, 0, null, 100, null],
+        },
+      });
+
+      const result = await getWeather(city);
+
+      expect(result.current.precipitationMm).toBeNull();
+      expect(result.current.temperatureCelsius).toBe(0);
+      expect(result.forecast.map((day) => day.precipitationProbabilityPercent)).toEqual([
+        null,
+        0,
+        null,
+        100,
+        null,
+      ]);
+    });
+
     it.each([
       undefined,
       null,
@@ -394,6 +417,17 @@ describe('searchCities', () => {
       mockResponse(body);
 
       await expect(getWeather(city)).rejects.toThrow(WeatherServiceError);
+    });
+
+    it.each([
+      ['current', { daily: forecastResponse().daily }],
+      ['daily', { current: forecastResponse().current }],
+    ])('informa resposta incompleta quando %s está ausente', async (_field, body) => {
+      mockResponse(body);
+
+      await expect(getWeather(city)).rejects.toThrow(
+        new WeatherServiceError('Resposta de previsão incompleta ou inválida.'),
+      );
     });
 
     it.each([400, 500])('lança WeatherServiceError para HTTP %i', async (status) => {
@@ -502,9 +536,11 @@ describe('searchCities', () => {
   });
 
   it.each([400, 500])('lança WeatherServiceError para HTTP %i', async (status) => {
-    mockResponse({}, status);
+    mockResponse({ results: [cityResult] }, status);
 
-    await expect(searchCities('Lisboa')).rejects.toThrow(WeatherServiceError);
+    await expect(searchCities('Lisboa')).rejects.toThrow(
+      new WeatherServiceError(`Erro ao buscar cidades (HTTP ${status}).`),
+    );
   });
 
   it.each([
