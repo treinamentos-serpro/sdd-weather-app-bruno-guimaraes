@@ -22,8 +22,9 @@ Fahrenheit.
 
 O sucesso do fluxo principal é o usuário conseguir identificar a cidade correta
 e entender suas condições atuais e a previsão para os próximos cinco dias. As
-metas quantitativas e algumas decisões de apresentação permanecem sujeitas às
-perguntas em aberto ao final deste documento.
+decisões confirmadas definem o escopo desta versão. As metas marcadas como
+propostas e os itens de publicação pendentes ao final deste documento exigem
+aprovação antes de serem tratados como compromissos de produção.
 
 ## Functional Requirements
 
@@ -33,23 +34,28 @@ O sistema deve permitir que o usuário pesquise cidades pelo nome por meio de
 envio explícito e escolha uma das localidades retornadas. Os resultados devem
 exibir o nome da cidade, país e estado/região quando disponíveis. Se esse
 contexto não bastar para distinguir localidades homônimas, devem exibir as
-coordenadas retornadas pela fonte.
+coordenadas retornadas pela fonte. A ordem dos resultados retornada pela fonte
+deve ser preservada; uma nova busca não pode ser sobrescrita por uma resposta
+atrasada de busca anterior.
 
 ### FR-02 — Consultar as condições atuais
 
 Após a seleção de uma cidade, o sistema deve consultar e apresentar as
 condições meteorológicas atuais associadas ao identificador ou às coordenadas
 daquela localidade. Os campos essenciais são temperatura e descrição da
-condição; quando ausentes, devem ser identificados como indisponíveis. As
-descrições devem ser apresentadas em português do Brasil.
+condição; quando ausentes ou inválidos, devem ser identificados como
+indisponíveis, sem inferir valores. As descrições devem ser apresentadas em
+português do Brasil. A atualização deve ser identificada pelo horário de
+referência fornecido pela fonte, quando disponível.
 
 ### FR-03 — Consultar a previsão de cinco dias
 
 Para a cidade selecionada, o sistema deve apresentar a previsão de hoje e dos
 quatro dias seguintes, em granularidade diária e no calendário local da cidade.
 Cada dia deve apresentar temperatura mínima, temperatura máxima e descrição da
-condição. Campos ou datas sem dados devem permanecer identificados como
-indisponíveis.
+condição. Campos ou datas sem dados ou inválidos devem permanecer identificados
+como indisponíveis; a interface não deve calcular valores ausentes nem
+apresentar dados de outra data.
 
 ### FR-04 — Alternar a unidade de temperatura
 
@@ -65,13 +71,16 @@ entre sessões nesta versão.
 Quando a busca ou a consulta meteorológica falhar, o sistema deve informar que
 os dados não puderam ser obtidos e oferecer uma ação para tentar novamente.
 Uma pesquisa sem cidades correspondentes deve ser comunicada como resultado
-vazio, não como falha de serviço.
+vazio, não como falha de serviço. Nova tentativa só ocorre por ação do usuário
+e repete a mesma operação com os mesmos parâmetros.
 
 ### FR-06 — Informar o estado da consulta
 
 O sistema deve dar retorno observável durante a busca e a consulta, apresentar
 os resultados associados à cidade selecionada e não deixar o usuário sem
-orientação quando não houver resultados.
+orientação quando não houver resultados. Cada operação deve comunicar
+carregamento, sucesso com dados, vazio ou falha; uma resposta obsoleta não pode
+alterar o estado da operação mais recente.
 
 ## User Stories
 
@@ -146,6 +155,11 @@ observáveis para validação automatizada.
   - **Then:** o sistema remove apenas espaços em branco no início e no fim,
     codifica corretamente os demais caracteres e envia a consulta sem remover
     acentos, espaços internos ou pontuação.
+- **AC-01.7**
+  - **Given:** uma busca A está em andamento e o usuário inicia uma busca B.
+  - **When:** as respostas de A e B chegam em qualquer ordem.
+  - **Then:** somente o estado e os resultados de B são apresentados; uma
+    resposta atrasada de A não substitui nem altera os resultados mais recentes.
 
 ### Para FR-02 — Consultar as condições atuais
 
@@ -179,6 +193,12 @@ observáveis para validação automatizada.
   - **When:** o sistema apresenta os dados da cidade.
   - **Then:** exibe esse horário no fuso local da cidade e identifica os dados
     como desatualizados se o horário tiver mais de duas horas.
+- **AC-02.6**
+  - **Given:** a fonte não fornece horário de referência ou fornece um horário
+    inválido.
+  - **When:** o sistema apresenta as condições atuais.
+  - **Then:** não inventa um horário nem afirma que os dados estão atualizados;
+    os campos meteorológicos válidos continuam disponíveis.
 
 ### Para FR-03 — Consultar a previsão de cinco dias
 
@@ -253,7 +273,9 @@ observáveis para validação automatizada.
   - **Given:** uma busca ou consulta está em estado de falha e oferece nova
     tentativa.
   - **When:** o usuário aciona essa ação.
-  - **Then:** o sistema inicia novamente a mesma busca ou consulta que falhou.
+  - **Then:** o sistema inicia novamente a mesma busca ou consulta que falhou,
+    com os mesmos parâmetros, sem iniciar operações duplicadas por um único
+    acionamento.
 - **AC-05.4**
   - **Given:** uma nova tentativa de busca ou consulta também falhou.
   - **When:** o sistema apresenta o resultado dessa tentativa.
@@ -267,12 +289,15 @@ observáveis para validação automatizada.
     puderam ser obtidos e oferece nova tentativa, sem apresentar o timeout como
     resultado vazio.
 - **AC-05.6**
-  - **Given:** a fonte retornou uma resposta malformada ou sem nenhum dado
-    meteorológico utilizável.
+  - **Given:** a estrutura da resposta meteorológica impede extrair dados
+    válidos ou nenhum campo meteorológico esperado tem valor válido para as
+    condições atuais ou para qualquer data prevista.
   - **When:** o sistema processa a resposta.
   - **Then:** o sistema comunica que os dados não puderam ser obtidos e oferece
-    nova tentativa, sem exibir valores inválidos. Uma resposta válida de
-    geocoding sem correspondências deve seguir AC-01.4, não este critério.
+    nova tentativa, sem exibir valores inválidos. Campos ausentes ou inválidos
+    em uma resposta parcialmente utilizável são identificados como
+    indisponíveis, conforme AC-02.4 e AC-03.5. Uma resposta válida de geocoding
+    sem correspondências deve seguir AC-01.4, não este critério.
 
 ### Para FR-06 — Informar o estado da consulta
 
@@ -299,12 +324,17 @@ observáveis para validação automatizada.
   - **Then:** a interface apresenta apenas os dados da seleção mais recente
     (B), identifica-os como pertencentes a B e não permite que a resposta
     atrasada de A os substitua.
+- **AC-06.5**
+  - **Given:** a cidade A está apresentada e o usuário seleciona a cidade B.
+  - **When:** a consulta de B está em andamento.
+  - **Then:** a interface indica que B está sendo consultada e não identifica
+    dados de A como pertencentes a B.
 
 ## Non-Functional Requirements
 
-Os valores marcados como **meta proposta** vieram da discovery ou são
-parâmetros iniciais para validação; não devem ser tratados como metas aprovadas
-até que o método de medição seja acordado.
+Os valores marcados como **meta proposta** são parâmetros para aprovação. Não
+são critérios de aceite de produção até que responsáveis, ambiente, método e
+eventuais exclusões de medição sejam acordados.
 
 - **NFR-01 — Responsividade:** a interface deve adaptar conteúdo e controles a
   diferentes larguras de tela. **Meta proposta:** a partir de 320 px de largura,
@@ -319,12 +349,13 @@ até que o método de medição seja acordado.
 - **NFR-03 — Desempenho:** **meta proposta:** 95% das consultas apresentam
   resultados em até 3 segundos. Medir, em janela mensal, o percentil 95 do
   tempo entre o envio da busca/seleção e a exibição do resultado para consultas
-  concluídas com sucesso; reportar separadamente o tempo da aplicação e o da
-  fonte externa e documentar ambiente, rede e população usados na medição.
+  concluídas com sucesso; medir busca e previsão separadamente, reportar o
+  tempo da aplicação e o da fonte externa separadamente e documentar ambiente,
+  rede, volume de amostras e população usados na medição.
 - **NFR-04 — Disponibilidade:** **meta proposta:** disponibilidade mensal de
-  99,5%. Calcular a disponibilidade da aplicação e a da fonte externa em
-  métricas separadas, sobre o total de minutos do mês, publicando a janela e as
-  exclusões adotadas.
+  99,5%. Definir previamente o que constitui indisponibilidade, calcular a
+  disponibilidade da aplicação e a da fonte externa em métricas separadas,
+  sobre o total de minutos do mês, e publicar janela e exclusões adotadas.
 - **NFR-05 — Acessibilidade:** as telas principais devem atender ao WCAG 2.2
   nível AA, incluindo operação por teclado, foco visível, contraste adequado,
   nomes acessíveis para controles e comunicação acessível de estados dinâmicos.
@@ -334,7 +365,7 @@ até que o método de medição seja acordado.
   WCAG 2.2 AA identificadas. A verificação automatizada, isoladamente, não
   comprova conformidade.
 - **NFR-06 — Compatibilidade:** navegadores e versões suportados devem ser
-  acordados antes da implementação. Os testes de aceite devem registrar
+  aprovados antes da publicação. Os testes de aceite devem registrar
   navegador, versão, sistema operacional e viewport em que foram executados.
 - **NFR-07 — Atualidade dos dados:** deve ser possível informar o horário
   de referência fornecido pela fonte, no fuso local da cidade. Dados cujo
@@ -372,6 +403,9 @@ até que o método de medição seja acordado.
   dados de uma ou mais datas da previsão; a interface exibe somente os dados
   disponíveis e identifica os campos ou dias ausentes como indisponíveis, sem
   sugerir cobertura completa.
+- A fonte retorna valores nulos, não numéricos ou não finitos para campos
+  meteorológicos; esses campos são tratados como indisponíveis e nunca
+  formatados como valores válidos.
 - A fonte retorna uma resposta vazia ou inválida que não pode ser usada como
   dado parcial; o sistema comunica falha e oferece nova tentativa, sem exibir
   valores inválidos.
@@ -444,64 +478,28 @@ até que o método de medição seja acordado.
 
 ## Open Questions
 
-As decisões abaixo não foram respondidas na discovery. Não devem ser tratadas
-como requisitos confirmados sem validação.
+As decisões abaixo são pendências de aprovação, não funcionalidades implícitas.
+As quatro primeiras são bloqueadores de publicação; as demais só entram no
+escopo se forem aprovadas e especificadas em uma versão futura.
 
-### Produto, público e plataforma
+### Bloqueadores de publicação
 
-1. Quem são os usuários prioritários, qual problema principal deve ser
-   resolvido e como o sucesso será medido?
-2. Qual região geográfica e quais localidades precisam ser cobertas?
-3. A interface web responsiva é suficiente ou há necessidade de PWA ou
-   aplicativos nativos?
+1. A Open-Meteo atende à cobertura geográfica e aos requisitos de licença,
+   atribuição, limites e disponibilidade do uso pretendido? Qual campo de
+   horário será a referência oficial para indicar atualização?
+2. Quais navegadores e versões serão suportados?
+3. Quais dados serão coletados por hospedagem ou ferramentas de análise, para
+   quais finalidades, por quanto tempo e em quais regiões serão armazenados?
+   Quem será responsável por monitoramento e resposta a incidentes?
+4. As metas propostas de desempenho, disponibilidade e largura mínima de
+   320 px foram aprovadas? Quais condições, responsáveis e exclusões serão
+   usadas na medição?
 
-### Busca e seleção de cidades
+### Decisões para versões futuras
 
-4. A busca aceitará apenas nomes de cidades ou também país, estado/região,
-   código postal e coordenadas?
-5. Serão necessários correção de erros, histórico ou outros recursos de busca?
-6. Qual cobertura de localidades se espera e como serão tratados grafias
-   alternativas e muitos resultados?
-
-### Dados e apresentação meteorológica
-
-7. São necessários outros campos meteorológicos ou alertas de eventos severos?
-   Como comunicar incerteza, precisão e limitações da previsão?
-8. A cobertura, a licença, a atribuição, os limites e a disponibilidade da
-   Open-Meteo atendem ao uso pretendido? Qual campo de horário da fonte será
-   usado como referência de atualização?
-
-### Unidades, idioma e preferências
-
-9. Celsius e Fahrenheit bastam para temperatura? Quais unidades serão usadas
-   para vento, precipitação e distância?
-10. Haverá suporte a outros idiomas? Como idioma, formatos de data e números
-    serão selecionados e localizados?
-
-### Persistência, conectividade e erros
-
-11. GPS, cidades favoritas ou consultas recentes serão adicionados? Se GPS for
-    considerado, quando será solicitada permissão e qual alternativa será
-    oferecida?
-12. O app precisa apresentar a última consulta quando a rede falhar ou
-    funcionar offline? Como dados armazenados serão identificados pela idade?
-13. Quais categorias de falha devem ser distinguidas para o usuário e quais
-    terão ações de recuperação específicas?
-14. Quando o usuário poderá atualizar os dados manualmente?
-15. Quais estados de interface, além de carregamento, vazio e erro, são
-    necessários para confirmar a seleção da cidade e a atualização dos dados?
-
-### Qualidade, compatibilidade e operação
-
-16. A largura mínima proposta de 320 px foi aprovada?
-17. As metas propostas de desempenho (95% em até 3 segundos) e disponibilidade
-    (99,5% mensal) foram aprovadas? Quais condições e exclusões serão usadas na
-    medição?
-18. Quais navegadores e versões devem ser suportados?
-19. Os métodos propostos de avaliação de acessibilidade e usabilidade são
-    adequados?
-20. Quais dados são coletados pela infraestrutura ou ferramentas de análise,
-    para quais finalidades, por quanto tempo e em quais regiões são armazenados?
-21. Há requisitos adicionais de segurança, retenção ou região de armazenamento?
-    Quem monitorará desempenho, falhas e limites da fonte, e qual será o
-    procedimento de resposta a incidentes?
+5. Há necessidade validada de outras regiões, campos meteorológicos, alertas,
+   idiomas ou unidades?
+6. Busca por país/estado, correção de erros, favoritos, histórico, GPS,
+   atualização automática ou funcionamento offline serão necessários?
+7. Há necessidade de pesquisa com usuários para validar público, tarefas e
+   critérios quantitativos de usabilidade?
