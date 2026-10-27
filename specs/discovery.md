@@ -6,6 +6,28 @@ A empresa solicitou uma aplicação para que usuários consultem informações m
 
 Este documento registra o entendimento inicial do briefing. Fonte de dados, público-alvo, critérios de desempenho e detalhes de interação ainda precisam ser confirmados.
 
+## Personas iniciais (hipóteses)
+
+As personas abaixo são hipóteses para orientar a descoberta, não segmentos já validados. Devem ser confirmadas com usuários antes de se tornarem critérios definitivos de produto.
+
+### 1. Marina — pessoa que se desloca diariamente
+
+- **Objetivo principal:** verificar rapidamente as condições do dia para decidir como se vestir e se preparar para o deslocamento.
+- **Contexto de uso:** principalmente no celular, em casa antes de sair ou durante o trajeto; consulta pontual e com pouco tempo disponível.
+- **Métrica de sucesso do ponto de vista da persona:** conseguir localizar sua cidade e entender a temperatura e a condição atual em até 30 segundos, sem selecionar uma cidade incorreta.
+
+### 2. Rafael — organizador de atividades ao ar livre
+
+- **Objetivo principal:** avaliar a previsão dos próximos dias para escolher quando realizar uma atividade ao ar livre.
+- **Contexto de uso:** celular para consultas rápidas e desktop para comparar com mais atenção os dias disponíveis ao planejar a atividade.
+- **Métrica de sucesso do ponto de vista da persona:** identificar em uma única consulta qual dos próximos cinco dias atende melhor às suas condições preferidas, com dia e temperatura apresentados de forma clara.
+
+### 3. Camila — pessoa que planeja uma viagem
+
+- **Objetivo principal:** consultar o clima de uma cidade de destino antes da viagem e ajustar o planejamento e a bagagem.
+- **Contexto de uso:** principalmente no desktop durante o planejamento, com nova consulta no celular perto da data da viagem.
+- **Métrica de sucesso do ponto de vista da persona:** encontrar e confirmar a cidade de destino — inclusive quando houver cidades com nomes semelhantes — e consultar a previsão de cinco dias na unidade de temperatura que prefere.
+
 ## Requisitos Funcionais
 
 - **RF-01 — Buscar cidades:** permitir que o usuário pesquise cidades pelo nome.
