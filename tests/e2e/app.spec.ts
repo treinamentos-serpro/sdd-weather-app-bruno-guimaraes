@@ -28,7 +28,7 @@ test('mantém layout e controles acessíveis a partir de 320 px', async ({ page 
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
 
-    await page.getByRole('button', { name: '°F', exact: true }).click();
+    await page.getByRole('button', { name: 'Graus Fahrenheit' }).click();
     await expect(page.getByLabel('Temperatura: 76 °F')).toBeVisible();
     await page.getByRole('combobox').selectOption('idle');
     await page.getByRole('searchbox').fill('São Paulo');

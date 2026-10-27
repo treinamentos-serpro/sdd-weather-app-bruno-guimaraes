@@ -48,6 +48,7 @@ describe('SearchBar', () => {
     expect(input).toHaveAccessibleDescription('Digite o nome de uma cidade para buscar.');
     expect(input).toBeInvalid();
     expect(input).toBeEnabled();
+    expect(input).toHaveFocus();
 
     await user.type(input, 'Recife{Enter}');
 

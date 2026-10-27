@@ -15,7 +15,10 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { name: 'WeatherView', level: 1 })).toBeVisible();
     expect(screen.getByRole('search', { name: 'Buscar cidade' })).toBeVisible();
-    expect(screen.getByRole('button', { name: '°C' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Graus Celsius' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
     expect(screen.getByRole('combobox', { name: 'Estado da demonstração' })).toHaveValue('success');
     expect(screen.getByRole('complementary')).toHaveTextContent('dados fictícios e fixos');
     expect(screen.getByLabelText('Temperatura: 25 °C')).toBeVisible();
@@ -49,7 +52,7 @@ describe('App', () => {
 
     expect(screen.getByRole('searchbox')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Buscar' })).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: '°F' }));
+    await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
     await user.selectOptions(screen.getByRole('combobox'), 'success');
 
     expect(screen.getByRole('searchbox')).toBeEnabled();
@@ -80,7 +83,7 @@ describe('App', () => {
     const original = structuredClone(mockWeatherData);
     const user = userEvent.setup();
     render(<App />);
-    await user.click(screen.getByRole('button', { name: '°F' }));
+    await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
 
     expect(screen.getByLabelText('Temperatura: 76 °F')).toBeVisible();
     const temperatures = [
@@ -105,7 +108,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
     expect(screen.getByLabelText('Temperatura: 76 °F')).toBeVisible();
 
-    await user.click(screen.getByRole('button', { name: '°C' }));
+    await user.click(screen.getByRole('button', { name: 'Graus Celsius' }));
     expect(screen.getByLabelText('Temperatura: 25 °C')).toBeVisible();
     expect(screen.getByText('28 °C')).toBeVisible();
     expect(mockWeatherData).toEqual(original);

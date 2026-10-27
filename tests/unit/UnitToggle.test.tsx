@@ -10,8 +10,8 @@ describe('UnitToggle', () => {
     render(<UnitToggle unit="celsius" onChange={vi.fn()} />);
 
     const group = screen.getByRole('group', { name: 'Unidade de temperatura' });
-    const celsius = within(group).getByRole('button', { name: '°C' });
-    const fahrenheit = within(group).getByRole('button', { name: '°F' });
+    const celsius = within(group).getByRole('button', { name: 'Graus Celsius' });
+    const fahrenheit = within(group).getByRole('button', { name: 'Graus Fahrenheit' });
 
     expect(celsius).toHaveAttribute('aria-pressed', 'true');
     expect(celsius).toHaveAttribute('tabindex', '0');
@@ -24,24 +24,24 @@ describe('UnitToggle', () => {
     const onChange = vi.fn();
     render(<UnitToggle unit="celsius" onChange={onChange} />);
 
-    await user.click(screen.getByRole('button', { name: '°F' }));
+    await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
 
     expect(onChange).toHaveBeenCalledExactlyOnceWith('fahrenheit');
   });
 
   it.each([
-    ['ArrowRight', '°F', 'fahrenheit'],
-    ['ArrowDown', '°F', 'fahrenheit'],
-    ['ArrowLeft', '°F', 'fahrenheit'],
-    ['ArrowUp', '°F', 'fahrenheit'],
-    ['End', '°F', 'fahrenheit'],
-    ['Home', '°C', 'celsius'],
+    ['ArrowRight', 'Graus Fahrenheit', 'fahrenheit'],
+    ['ArrowDown', 'Graus Fahrenheit', 'fahrenheit'],
+    ['ArrowLeft', 'Graus Fahrenheit', 'fahrenheit'],
+    ['ArrowUp', 'Graus Fahrenheit', 'fahrenheit'],
+    ['End', 'Graus Fahrenheit', 'fahrenheit'],
+    ['Home', 'Graus Celsius', 'celsius'],
   ])('suporta navegação por %s', async (key, focusedOption, selectedUnit) => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<UnitToggle unit="celsius" onChange={onChange} />);
 
-    screen.getByRole('button', { name: '°C' }).focus();
+    screen.getByRole('button', { name: 'Graus Celsius' }).focus();
     await user.keyboard(`{${key}}`);
 
     expect(screen.getByRole('button', { name: focusedOption })).toHaveFocus();
@@ -52,7 +52,7 @@ describe('UnitToggle', () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(<UnitToggle unit="celsius" onChange={onChange} />);
-    const fahrenheit = screen.getByRole('button', { name: '°F' });
+    const fahrenheit = screen.getByRole('button', { name: 'Graus Fahrenheit' });
 
     fahrenheit.focus();
     await user.keyboard('{Enter}');

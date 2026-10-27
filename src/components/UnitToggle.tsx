@@ -6,9 +6,9 @@ interface UnitToggleProps {
   onChange: (unit: Unit) => void;
 }
 
-const units: { value: Unit; label: string }[] = [
-  { value: 'celsius', label: '°C' },
-  { value: 'fahrenheit', label: '°F' },
+const units: { value: Unit; label: string; accessibleName: string }[] = [
+  { value: 'celsius', label: '°C', accessibleName: 'Graus Celsius' },
+  { value: 'fahrenheit', label: '°F', accessibleName: 'Graus Fahrenheit' },
 ];
 
 export default function UnitToggle({ unit, onChange }: UnitToggleProps) {
@@ -57,6 +57,7 @@ export default function UnitToggle({ unit, onChange }: UnitToggleProps) {
               if (element) buttonRefs.current[index] = element;
             }}
             type="button"
+            aria-label={option.accessibleName}
             aria-pressed={isSelected}
             tabIndex={isSelected ? 0 : -1}
             onClick={() => onChange(option.value)}

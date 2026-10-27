@@ -1,4 +1,4 @@
-import { type FormEvent, useId, useState } from 'react';
+import { type FormEvent, useId, useRef, useState } from 'react';
 
 interface SearchBarProps {
   onSearch: (city: string) => void;
@@ -8,6 +8,7 @@ interface SearchBarProps {
 export default function SearchBar({ onSearch, disabled = false }: SearchBarProps) {
   const inputId = useId();
   const errorId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [city, setCity] = useState('');
   const [showError, setShowError] = useState(false);
 
@@ -18,6 +19,7 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
     const query = city.trim();
     if (!query) {
       setShowError(true);
+      inputRef.current?.focus();
       return;
     }
 
@@ -37,6 +39,7 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
       </label>
       <div className="flex flex-col gap-3 sm:flex-row">
         <input
+          ref={inputRef}
           id={inputId}
           type="search"
           name="city"
@@ -49,7 +52,9 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
           aria-invalid={showError || undefined}
           aria-describedby={showError ? errorId : undefined}
           placeholder="Digite o nome de uma cidade"
-          className="min-w-0 flex-1 rounded-xl border border-white/10 bg-night-900 px-4 py-3 text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className={`min-w-0 flex-1 rounded-xl border bg-night-900 px-4 py-3 text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 disabled:cursor-not-allowed disabled:opacity-50 ${
+            showError ? 'border-rose-300' : 'border-white/10'
+          }`}
         />
         <button
           type="submit"
@@ -60,7 +65,7 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
         </button>
       </div>
       {showError && (
-        <p id={errorId} role="alert" className="mt-2 text-sm text-white">
+        <p id={errorId} role="alert" className="mt-2 text-sm text-rose-200">
           Digite o nome de uma cidade para buscar.
         </p>
       )}
