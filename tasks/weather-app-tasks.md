@@ -2,9 +2,11 @@
 
 Backlog derivado de [plano técnico](../plans/weather-app-plan.md) e
 [especificação de produto](../specs/weather-app-spec.md). As tarefas estão
-agrupadas por entrega e ordenadas para que cada dependência apareça antes de
-sua tarefa dependente. Tarefas de validação pré-publicação não substituem
-testes automatizados nem autorizam declarar metas sem evidências.
+agrupadas e ordenadas pelo fluxo de implementação: tipos, funções puras,
+serviços, hook, componentes, integração, testes e hardening. As dependências
+explícitas registram os pré-requisitos de cada tarefa. Tarefas de validação
+pré-publicação não substituem testes automatizados nem autorizam declarar
+metas sem evidências.
 
 Cada critério de aceite deve descrever um resultado observável e verificável,
 com limiar ou condição explícita quando aplicável. A rastreabilidade de cada
@@ -12,55 +14,7 @@ tarefa aponta para os IDs pertinentes de requisitos, critérios de aceite ou
 requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 é identificada como habilitadora técnica e vinculada ao plano.
 
-## Entrega 1 — Pré-condições e fundação
-
-### T-01 — Validar uso da Open-Meteo e atribuição
-
-- **Descrição:** Confirmar cobertura, licença, atribuição exigida, limites e
-  disponibilidade da Open-Meteo para o uso previsto antes de integrar a fonte.
-- **Critérios de aceite:**
-  - As condições de uso aplicáveis às APIs de geocoding e previsão estão
-    verificadas em fontes oficiais, com links e data de consulta registrados.
-  - O texto e o local exigidos para atribuição estão identificados para a tela
-    de resultados.
-  - Qualquer restrição impeditiva está registrada e bloqueia a integração até
-    que a decisão de fonte seja revista.
-- **Dependências:** Nenhuma.
-- **Arquivos prováveis:** `plans/weather-app-plan.md`,
-  `src/components/CityResults.tsx`.
-- **Tipo:** Infra.
-- **Rastreabilidade:** Pré-condição do plano (External APIs; Risks & Trade-offs);
-  NFR-08.
-
-### T-02 — Configurar a montagem inicial da aplicação
-
-- **Descrição:** Configurar o ponto de entrada React existente para montar
-  `App`, aproveitando Vite e TypeScript.
-- **Critérios de aceite:**
-  - `pnpm dev` inicia o servidor Vite sem falha e uma requisição à rota `/`
-    retorna HTTP 200.
-  - O ponto de entrada monta `App` no elemento raiz existente, sem erro de
-    execução no console durante a inicialização.
-- **Dependências:** Nenhuma.
-- **Arquivos prováveis:** `src/main.tsx`, `index.html`.
-- **Tipo:** Infra.
-- **Rastreabilidade:** Habilitadora técnica para FR-01 a FR-06; estrutura de
-  execução prevista no plano.
-
-### T-03 — Criar o shell e o tema base
-
-- **Descrição:** Definir a composição inicial de `App` e o estilo global dark
-  glassmorphism sem introduzir outra biblioteca de UI.
-- **Critérios de aceite:**
-  - `App` renderiza uma região principal e o CSS global aplica o tema escuro
-    definido no plano.
-  - As pastas `components`, `hooks`, `services`, `lib` e `types` existem, e
-    `package.json` não adiciona outra biblioteca de UI.
-- **Dependências:** T-02.
-- **Arquivos prováveis:** `src/App.tsx`, `src/index.css`.
-- **Tipo:** UI.
-- **Rastreabilidade:** NFR-01; habilitadora técnica dos fluxos FR-01 a FR-06,
-  conforme estrutura do plano.
+## Entrega 1 — Tipos
 
 ### T-04 — Definir os contratos compartilhados de domínio
 
@@ -78,6 +32,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Rastreabilidade:** FR-01 a FR-06; AC-02.4, AC-03.5, AC-05.1 a AC-05.6,
   AC-06.1 a AC-06.5.
 
+
 ## Entrega 2 — Funções puras e normalização
 
 ### T-05 — Normalizar resultados de geocoding
@@ -94,20 +49,6 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Arquivos prováveis:** `src/lib/normalizeGeocoding.ts`.
 - **Tipo:** Data.
 - **Rastreabilidade:** FR-01; AC-01.2, AC-01.2a, AC-01.3, AC-01.4.
-
-### T-06 — Testar a normalização de geocoding
-
-- **Descrição:** Cobrir dados completos, opcionais, inválidos e lista vazia do
-  normalizador de geocoding.
-- **Critérios de aceite:**
-  - Testes verificam mapeamento, ordem, coordenadas obrigatórias, opcionais
-    ausentes/inválidos e resposta vazia.
-  - Payloads incompatíveis são verificados como inválidos e não são tratados
-    como lista vazia.
-- **Dependências:** T-05.
-- **Arquivos prováveis:** `tests/unit/normalizeGeocoding.test.ts`.
-- **Tipo:** Test.
-- **Rastreabilidade:** FR-01; AC-01.2, AC-01.2a, AC-01.4.
 
 ### T-07 — Implementar utilitários de calendário local e atualidade
 
@@ -127,22 +68,6 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Rastreabilidade:** FR-02, FR-03; AC-02.5, AC-02.6, AC-03.1, AC-03.4;
   NFR-07.
 
-### T-08 — Testar datas locais e limite de atualidade
-
-- **Descrição:** Verificar calendários locais, offsets e o limite de duas horas
-  com relógio controlado.
-- **Critérios de aceite:**
-  - Os testes cobrem virada de mês/ano, independência do fuso do dispositivo,
-    offsets positivo e negativo e dados de horário de verão conforme o offset
-    da fonte.
-  - Exatamente duas horas não classifica como desatualizado; intervalo maior
-    classifica.
-  - Horário e offset ausentes ou inválidos não geram afirmação de atualidade.
-- **Dependências:** T-07.
-- **Arquivos prováveis:** `tests/unit/date.test.ts`.
-- **Tipo:** Test.
-- **Rastreabilidade:** AC-02.5, AC-02.6, AC-03.1, AC-03.4; NFR-07.
-
 ### T-09 — Mapear códigos meteorológicos WMO para pt-BR
 
 - **Descrição:** Implementar a tabela de condições em português do Brasil,
@@ -158,19 +83,6 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Tipo:** Data.
 - **Rastreabilidade:** FR-02, FR-03; AC-02.2, AC-03.2, AC-05.6.
 
-### T-10 — Testar o mapeamento WMO
-
-- **Descrição:** Testar os códigos documentados e os casos desconhecidos do
-  mapeador de condições.
-- **Critérios de aceite:**
-  - Existe ao menos uma asserção para cada código WMO listado na documentação
-    oficial usada pelo mapeador e para um código não mapeado.
-  - Códigos desconhecidos não recebem descrição inventada.
-- **Dependências:** T-09.
-- **Arquivos prováveis:** `tests/unit/weatherCode.test.ts`.
-- **Tipo:** Test.
-- **Rastreabilidade:** AC-02.2, AC-03.2, AC-05.6.
-
 ### T-11 — Implementar conversão e formatação de temperatura
 
 - **Descrição:** Criar funções puras para conversão entre Celsius e Fahrenheit
@@ -184,20 +96,6 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Arquivos prováveis:** `src/lib/temperature.ts`.
 - **Tipo:** Data.
 - **Rastreabilidade:** FR-04; AC-02.3, AC-03.3, AC-04.2.
-
-### T-12 — Testar conversão e formatação de temperatura
-
-- **Descrição:** Validar fórmulas, arredondamento, precisão canônica e ausência
-  de deriva ao alternar unidades.
-- **Critérios de aceite:**
-  - Os testes incluem `0 °C → 32 °F`, `100 °C → 212 °F` e `−40 °C → −40 °F`.
-  - Empates positivos e negativos arredondam para longe de zero.
-  - Alternar unidades repetidamente sempre parte do valor original, sem
-    acumular arredondamento.
-- **Dependências:** T-11.
-- **Arquivos prováveis:** `tests/unit/temperature.test.ts`.
-- **Tipo:** Test.
-- **Rastreabilidade:** FR-04; AC-04.2, AC-04.3, AC-04.4.
 
 ### T-13 — Normalizar dados meteorológicos da previsão
 
@@ -219,23 +117,26 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Rastreabilidade:** FR-02, FR-03; AC-02.1 a AC-02.6, AC-03.1 a AC-03.5,
   AC-05.6.
 
-### T-14 — Testar a normalização meteorológica
 
-- **Descrição:** Cobrir respostas completas, parciais, inválidas e
-  desalinhadas do normalizador de forecast.
+## Entrega 3 — Services
+
+### T-01 — Validar uso da Open-Meteo e atribuição
+
+- **Descrição:** Confirmar cobertura, licença, atribuição exigida, limites e
+  disponibilidade da Open-Meteo para o uso previsto antes de integrar a fonte.
 - **Critérios de aceite:**
-  - Testes verificam campos ausentes, `null`, não numéricos e não finitos,
-    respostas parciais e resposta totalmente inutilizável.
-  - Cinco datas permanecem na ordem correta inclusive em viradas de mês/ano e
-    com dados diários ausentes.
-  - São testados códigos WMO conhecidos/desconhecidos e a cidade selecionada
-    mantida no resultado.
-- **Dependências:** T-13.
-- **Arquivos prováveis:** `tests/unit/normalizeWeather.test.ts`.
-- **Tipo:** Test.
-- **Rastreabilidade:** AC-02.4, AC-03.1 a AC-03.5, AC-05.6.
-
-## Entrega 3 — Serviços de dados
+  - As condições de uso aplicáveis às APIs de geocoding e previsão estão
+    verificadas em fontes oficiais, com links e data de consulta registrados.
+  - O texto e o local exigidos para atribuição estão identificados para a tela
+    de resultados.
+  - Qualquer restrição impeditiva está registrada e bloqueia a integração até
+    que a decisão de fonte seja revista.
+- **Dependências:** Nenhuma.
+- **Arquivos prováveis:** `plans/weather-app-plan.md`,
+  `src/components/CityResults.tsx`.
+- **Tipo:** Infra.
+- **Rastreabilidade:** Pré-condição do plano (External APIs; Risks & Trade-offs);
+  NFR-08.
 
 ### T-15 — Implementar o serviço de geocoding
 
@@ -252,21 +153,6 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Arquivos prováveis:** `src/services/geocodingService.ts`.
 - **Tipo:** Data.
 - **Rastreabilidade:** FR-01, FR-05; AC-01.4, AC-01.6, AC-05.2 a AC-05.5.
-
-### T-16 — Testar o serviço de geocoding
-
-- **Descrição:** Testar parâmetros, codificação, normalização, estados vazios e
-  classificação de falhas usando `fetch` mockado.
-- **Critérios de aceite:**
-  - Testes verificam acentos, espaços internos, pontuação, parâmetros e ordem
-    dos resultados sem tráfego de rede real.
-  - Sucesso, lista vazia, erro HTTP/API/rede, JSON inválido e timeout são
-    cobertos.
-  - Timers são controlados e limpos ao final de cada teste.
-- **Dependências:** T-15.
-- **Arquivos prováveis:** `tests/unit/geocodingService.test.ts`.
-- **Tipo:** Test.
-- **Rastreabilidade:** AC-01.4, AC-01.6, AC-05.2, AC-05.5.
 
 ### T-17 — Implementar o serviço de previsão
 
@@ -285,22 +171,8 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Rastreabilidade:** FR-02, FR-03, FR-05; AC-02.1, AC-03.1, AC-05.1,
   AC-05.5, AC-05.6.
 
-### T-18 — Testar o serviço de previsão
 
-- **Descrição:** Verificar contrato HTTP, coordenadas, parâmetros, normalização
-  e erros do serviço de forecast com respostas controladas.
-- **Critérios de aceite:**
-  - Testes confirmam as coordenadas selecionadas e todos os parâmetros
-    exigidos, sem usar a API real.
-  - Sucesso completo/parcial, falhas HTTP/API/rede, JSON inválido, resposta
-    incompatível e timeout são cobertos.
-  - Timers são liberados após sucesso e falha.
-- **Dependências:** T-17.
-- **Arquivos prováveis:** `tests/unit/weatherService.test.ts`.
-- **Tipo:** Test.
-- **Rastreabilidade:** AC-02.1, AC-03.1, AC-05.1, AC-05.5, AC-05.6.
-
-## Entrega 4 — Orquestração e interface
+## Entrega 4 — Hook
 
 ### T-19 — Orquestrar busca, seleção, previsão e retry
 
@@ -323,21 +195,8 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Rastreabilidade:** FR-01, FR-04, FR-05, FR-06; AC-01.5, AC-01.7,
   AC-04.4, AC-05.1 a AC-05.5, AC-06.1 a AC-06.5.
 
-### T-20 — Testar o hook de orquestração
 
-- **Descrição:** Verificar transições, retry, validação, unidade, bloqueio de
-  duplicidade e concorrência com serviços mockados.
-- **Critérios de aceite:**
-  - Testes cobrem consulta vazia sem chamada, busca vazia, loading, sucesso e
-    erro para ambas as operações.
-  - Retry reutiliza os mesmos argumentos; falhas e sucessos de operações
-    obsoletas não alteram o estado mais recente.
-  - Selecionar outra cidade limpa a associação visual ao resultado anterior;
-    alternar unidade não chama serviços.
-- **Dependências:** T-19.
-- **Arquivos prováveis:** `tests/unit/useWeatherSearch.test.ts`.
-- **Tipo:** Test.
-- **Rastreabilidade:** AC-01.5, AC-01.7, AC-04.3, AC-05.3, AC-06.1 a AC-06.5.
+## Entrega 5 — Componentes
 
 ### T-21 — Criar a interface acessível de busca de cidades
 
@@ -355,20 +214,6 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Tipo:** UI.
 - **Rastreabilidade:** FR-01, FR-05, FR-06; AC-01.1 a AC-01.7, AC-05.2,
   AC-06.1, AC-06.3.
-
-### T-22 — Testar a interface de busca
-
-- **Descrição:** Testar a interação da busca e a renderização dos estados por
-  comportamento acessível.
-- **Critérios de aceite:**
-  - Testes com Testing Library verificam envio por botão/Enter, seleção por
-    teclado, validação vazia e preservação da ordem/contexto das opções.
-  - Loading, vazio e erro são consultáveis por roles/labels e não são
-    confundidos entre si.
-- **Dependências:** T-21.
-- **Arquivos prováveis:** `tests/components/CitySearch.test.tsx`.
-- **Tipo:** Test.
-- **Rastreabilidade:** AC-01.1 a AC-01.7, AC-05.2, AC-06.1, AC-06.3.
 
 ### T-23 — Criar a interface de condições atuais e previsão
 
@@ -405,23 +250,38 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Tipo:** UI.
 - **Rastreabilidade:** FR-04; AC-02.3, AC-03.3, AC-04.1 a AC-04.4.
 
-### T-25 — Testar resultados e controle de unidade
 
-- **Descrição:** Validar renderização de resultados completos/parciais,
-  atualidade, indisponibilidades, atribuição e alternância de unidade.
+## Entrega 6 — Integração
+
+### T-02 — Configurar a montagem inicial da aplicação
+
+- **Descrição:** Configurar o ponto de entrada React existente para montar
+  `App`, aproveitando Vite e TypeScript.
 - **Critérios de aceite:**
-  - Testes verificam cidade, condições, cinco datas, campos indisponíveis e
-    atribuição da fonte usando consultas acessíveis.
-  - O estado de atualidade respeita dados válidos/indisponíveis sem inventar
-    status.
-  - Celsius/Fahrenheit atualiza todas as temperaturas sem chamada de serviço
-    e preserva cidade e datas.
-- **Dependências:** T-23, T-24.
-- **Arquivos prováveis:** `tests/components/CityResults.test.tsx`,
-  `tests/components/UnitToggle.test.tsx`.
-- **Tipo:** Test.
-- **Rastreabilidade:** AC-02.1 a AC-02.6, AC-03.1 a AC-03.5, AC-04.1 a
-  AC-04.4.
+  - `pnpm dev` inicia o servidor Vite sem falha e uma requisição à rota `/`
+    retorna HTTP 200.
+  - O ponto de entrada monta `App` no elemento raiz existente, sem erro de
+    execução no console durante a inicialização.
+- **Dependências:** Nenhuma.
+- **Arquivos prováveis:** `src/main.tsx`, `index.html`.
+- **Tipo:** Infra.
+- **Rastreabilidade:** Habilitadora técnica para FR-01 a FR-06; estrutura de
+  execução prevista no plano.
+
+### T-03 — Criar o shell e o tema base
+
+- **Descrição:** Definir a composição inicial de `App` e o estilo global dark
+  glassmorphism sem introduzir outra biblioteca de UI.
+- **Critérios de aceite:**
+  - `App` renderiza uma região principal e o CSS global aplica o tema escuro
+    definido no plano.
+  - As pastas `components`, `hooks`, `services`, `lib` e `types` existem, e
+    `package.json` não adiciona outra biblioteca de UI.
+- **Dependências:** T-02.
+- **Arquivos prováveis:** `src/App.tsx`, `src/index.css`.
+- **Tipo:** UI.
+- **Rastreabilidade:** NFR-01; habilitadora técnica dos fluxos FR-01 a FR-06,
+  conforme estrutura do plano.
 
 ### T-26 — Integrar o fluxo completo na aplicação
 
@@ -454,7 +314,175 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Tipo:** UI.
 - **Rastreabilidade:** NFR-01.
 
-## Entrega 5 — Testes integrados e aceite
+
+## Entrega 7 — Testes
+
+### T-06 — Testar a normalização de geocoding
+
+- **Descrição:** Cobrir dados completos, opcionais, inválidos e lista vazia do
+  normalizador de geocoding.
+- **Critérios de aceite:**
+  - Testes verificam mapeamento, ordem, coordenadas obrigatórias, opcionais
+    ausentes/inválidos e resposta vazia.
+  - Payloads incompatíveis são verificados como inválidos e não são tratados
+    como lista vazia.
+- **Dependências:** T-05.
+- **Arquivos prováveis:** `tests/unit/normalizeGeocoding.test.ts`.
+- **Tipo:** Test.
+- **Rastreabilidade:** FR-01; AC-01.2, AC-01.2a, AC-01.4.
+
+### T-08 — Testar datas locais e limite de atualidade
+
+- **Descrição:** Verificar calendários locais, offsets e o limite de duas horas
+  com relógio controlado.
+- **Critérios de aceite:**
+  - Os testes cobrem virada de mês/ano, independência do fuso do dispositivo,
+    offsets positivo e negativo e dados de horário de verão conforme o offset
+    da fonte.
+  - Exatamente duas horas não classifica como desatualizado; intervalo maior
+    classifica.
+  - Horário e offset ausentes ou inválidos não geram afirmação de atualidade.
+- **Dependências:** T-07.
+- **Arquivos prováveis:** `tests/unit/date.test.ts`.
+- **Tipo:** Test.
+- **Rastreabilidade:** AC-02.5, AC-02.6, AC-03.1, AC-03.4; NFR-07.
+
+### T-10 — Testar o mapeamento WMO
+
+- **Descrição:** Testar os códigos documentados e os casos desconhecidos do
+  mapeador de condições.
+- **Critérios de aceite:**
+  - Existe ao menos uma asserção para cada código WMO listado na documentação
+    oficial usada pelo mapeador e para um código não mapeado.
+  - Códigos desconhecidos não recebem descrição inventada.
+- **Dependências:** T-09.
+- **Arquivos prováveis:** `tests/unit/weatherCode.test.ts`.
+- **Tipo:** Test.
+- **Rastreabilidade:** AC-02.2, AC-03.2, AC-05.6.
+
+### T-12 — Testar conversão e formatação de temperatura
+
+- **Descrição:** Validar fórmulas, arredondamento, precisão canônica e ausência
+  de deriva ao alternar unidades.
+- **Critérios de aceite:**
+  - Os testes incluem `0 °C → 32 °F`, `100 °C → 212 °F` e `−40 °C → −40 °F`.
+  - Empates positivos e negativos arredondam para longe de zero.
+  - Alternar unidades repetidamente sempre parte do valor original, sem
+    acumular arredondamento.
+- **Dependências:** T-11.
+- **Arquivos prováveis:** `tests/unit/temperature.test.ts`.
+- **Tipo:** Test.
+- **Rastreabilidade:** FR-04; AC-04.2, AC-04.3, AC-04.4.
+
+### T-14 — Testar a normalização meteorológica
+
+- **Descrição:** Cobrir respostas completas, parciais, inválidas e
+  desalinhadas do normalizador de forecast.
+- **Critérios de aceite:**
+  - Testes verificam campos ausentes, `null`, não numéricos e não finitos,
+    respostas parciais e resposta totalmente inutilizável.
+  - Cinco datas permanecem na ordem correta inclusive em viradas de mês/ano e
+    com dados diários ausentes.
+  - São testados códigos WMO conhecidos/desconhecidos e a cidade selecionada
+    mantida no resultado.
+- **Dependências:** T-13.
+- **Arquivos prováveis:** `tests/unit/normalizeWeather.test.ts`.
+- **Tipo:** Test.
+- **Rastreabilidade:** AC-02.4, AC-03.1 a AC-03.5, AC-05.6.
+
+### T-16 — Testar o serviço de geocoding
+
+- **Descrição:** Testar parâmetros, codificação, normalização, estados vazios e
+  classificação de falhas usando `fetch` mockado.
+- **Critérios de aceite:**
+  - Testes verificam acentos, espaços internos, pontuação, parâmetros e ordem
+    dos resultados sem tráfego de rede real.
+  - Sucesso, lista vazia, erro HTTP/API/rede, JSON inválido e timeout são
+    cobertos.
+  - Timers são controlados e limpos ao final de cada teste.
+- **Dependências:** T-15.
+- **Arquivos prováveis:** `tests/unit/geocodingService.test.ts`.
+- **Tipo:** Test.
+- **Rastreabilidade:** AC-01.4, AC-01.6, AC-05.2, AC-05.5.
+
+### T-18 — Testar o serviço de previsão
+
+- **Descrição:** Verificar contrato HTTP, coordenadas, parâmetros, normalização
+  e erros do serviço de forecast com respostas controladas.
+- **Critérios de aceite:**
+  - Testes confirmam as coordenadas selecionadas e todos os parâmetros
+    exigidos, sem usar a API real.
+  - Sucesso completo/parcial, falhas HTTP/API/rede, JSON inválido, resposta
+    incompatível e timeout são cobertos.
+  - Timers são liberados após sucesso e falha.
+- **Dependências:** T-17.
+- **Arquivos prováveis:** `tests/unit/weatherService.test.ts`.
+- **Tipo:** Test.
+- **Rastreabilidade:** AC-02.1, AC-03.1, AC-05.1, AC-05.5, AC-05.6.
+
+### T-20 — Testar o hook de orquestração
+
+- **Descrição:** Verificar transições, retry, validação, unidade, bloqueio de
+  duplicidade e concorrência com serviços mockados.
+- **Critérios de aceite:**
+  - Testes cobrem consulta vazia sem chamada, busca vazia, loading, sucesso e
+    erro para ambas as operações.
+  - Retry reutiliza os mesmos argumentos; falhas e sucessos de operações
+    obsoletas não alteram o estado mais recente.
+  - Selecionar outra cidade limpa a associação visual ao resultado anterior;
+    alternar unidade não chama serviços.
+- **Dependências:** T-19.
+- **Arquivos prováveis:** `tests/unit/useWeatherSearch.test.ts`.
+- **Tipo:** Test.
+- **Rastreabilidade:** AC-01.5, AC-01.7, AC-04.3, AC-05.3, AC-06.1 a AC-06.5.
+
+### T-22 — Testar a interface de busca
+
+- **Descrição:** Testar a interação da busca e a renderização dos estados por
+  comportamento acessível.
+- **Critérios de aceite:**
+  - Testes com Testing Library verificam envio por botão/Enter, seleção por
+    teclado, validação vazia e preservação da ordem/contexto das opções.
+  - Loading, vazio e erro são consultáveis por roles/labels e não são
+    confundidos entre si.
+- **Dependências:** T-21.
+- **Arquivos prováveis:** `tests/components/CitySearch.test.tsx`.
+- **Tipo:** Test.
+- **Rastreabilidade:** AC-01.1 a AC-01.7, AC-05.2, AC-06.1, AC-06.3.
+
+### T-25 — Testar resultados e controle de unidade
+
+- **Descrição:** Validar renderização de resultados completos/parciais,
+  atualidade, indisponibilidades, atribuição e alternância de unidade.
+- **Critérios de aceite:**
+  - Testes verificam cidade, condições, cinco datas, campos indisponíveis e
+    atribuição da fonte usando consultas acessíveis.
+  - O estado de atualidade respeita dados válidos/indisponíveis sem inventar
+    status.
+  - Celsius/Fahrenheit atualiza todas as temperaturas sem chamada de serviço
+    e preserva cidade e datas.
+- **Dependências:** T-23, T-24.
+- **Arquivos prováveis:** `tests/components/CityResults.test.tsx`,
+  `tests/components/UnitToggle.test.tsx`.
+- **Tipo:** Test.
+- **Rastreabilidade:** AC-02.1 a AC-02.6, AC-03.1 a AC-03.5, AC-04.1 a
+  AC-04.4.
+
+### T-42 — Validar testes unitários e de componentes
+
+- **Descrição:** Executar os testes automatizados unitários e de componentes
+  antes da entrega.
+- **Critérios de aceite:**
+  - `pnpm test` conclui sem falhas e o resultado é registrado.
+  - Testes unitários e de componentes não dependem da disponibilidade real da
+    Open-Meteo.
+  - Falhas são corrigidas em tarefas focadas e os testes afetados são
+    executados novamente.
+- **Dependências:** T-06, T-08, T-10, T-12, T-14,
+  T-16, T-18, T-20, T-22, T-25.
+- **Arquivos prováveis:** `package.json`.
+- **Tipo:** Test.
+- **Rastreabilidade:** FR-01 a FR-06; NFR-05.
 
 ### T-28 — Cobrir jornada principal e busca vazia em E2E
 
@@ -467,7 +495,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
     causada pela alternância de unidade.
   - Busca vazia não gera request; ausência de correspondências apresenta
     estado vazio e permite nova busca.
-- **Dependências:** T-16, T-18, T-26, T-27.
+- **Dependências:** T-16, T-18, T-26, T-27, T-42.
 - **Arquivos prováveis:** `tests/e2e/weather-search.spec.ts`.
 - **Tipo:** Test.
 - **Rastreabilidade:** AC-01.1 a AC-01.6, AC-02.1 a AC-02.4, AC-03.1 a
@@ -516,6 +544,37 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 - **Tipo:** Test.
 - **Rastreabilidade:** NFR-01; AC-01.1, AC-04.1, AC-06.1 a AC-06.3.
 
+### T-43 — Validar testes E2E
+
+- **Descrição:** Executar a suíte Playwright antes da entrega.
+- **Critérios de aceite:**
+  - `pnpm test:e2e` conclui sem falhas e o resultado é registrado.
+  - Os cenários E2E usam fixtures/interceptações e não dependem da
+    disponibilidade real da Open-Meteo.
+  - Falhas são corrigidas em tarefas focadas e os testes afetados são
+    executados novamente.
+- **Dependências:** T-28, T-29, T-30, T-31.
+- **Arquivos prováveis:** `package.json`.
+- **Tipo:** Test.
+- **Rastreabilidade:** NFR-01, NFR-05.
+
+### T-41 — Validar lint e build
+
+- **Descrição:** Executar as verificações estáticas e o build de produção antes
+  da entrega.
+- **Critérios de aceite:**
+  - `pnpm lint` e `pnpm build` concluem sem falhas.
+  - Os resultados são registrados; falhas são corrigidas em tarefas focadas e
+    os comandos afetados são executados novamente.
+- **Dependências:** T-27, T-42, T-43.
+- **Arquivos prováveis:** `package.json`.
+- **Tipo:** Test.
+- **Rastreabilidade:** Habilitadora técnica para validar a implementação de
+  FR-01 a FR-06; checklist de entrega do plano.
+
+
+## Entrega 8 — Hardening
+
 ### T-32 — Auditar acessibilidade de busca e teclado (WCAG 2.2 AA)
 
 - **Descrição:** Auditar a busca, seus estados e a interação por teclado com
@@ -526,7 +585,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
   - O relatório lista cada violação encontrada pelo critério WCAG 2.2 AA,
     localização e evidência; após correção e repetição da auditoria, não há
     violação aberta nessa superfície.
-- **Dependências:** T-22, T-30.
+- **Dependências:** T-22, T-30, T-41.
 - **Arquivos prováveis:** `src/components/CitySearch.tsx`,
   `tests/e2e/weather-keyboard.spec.ts`.
 - **Tipo:** Test.
@@ -543,7 +602,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
   - O relatório lista cada violação encontrada pelo critério WCAG 2.2 AA,
     localização e evidência; após correção e nova revisão, não há violação
     aberta nessa superfície.
-- **Dependências:** T-25, T-26.
+- **Dependências:** T-25, T-26, T-41.
 - **Arquivos prováveis:** `src/components/CityResults.tsx`,
   `src/components/UnitToggle.tsx`.
 - **Tipo:** Test.
@@ -560,7 +619,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
     e resultado aprovado/reprovado.
   - Emulação mobile ou WebKit isoladamente não é usada como substituto para
     Safari/iOS.
-- **Dependências:** T-28, T-30, T-31.
+- **Dependências:** T-28, T-30, T-31, T-41.
 - **Arquivos prováveis:** `playwright.config.ts`,
   `tests/e2e/weather-search.spec.ts`.
 - **Tipo:** Test.
@@ -576,7 +635,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
   - Endpoint, parâmetros e resposta observada são comparados ao contrato
     normalizado; falhas não são transformadas em resultado vazio.
   - Método, data e resultado da verificação são registrados.
-- **Dependências:** T-15, T-26.
+- **Dependências:** T-15, T-26, T-28, T-41.
 - **Arquivos prováveis:** `src/services/geocodingService.ts`,
   `plans/weather-app-plan.md`.
 - **Tipo:** Test.
@@ -593,7 +652,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
   - Endpoint, parâmetros e resposta observada são comparados ao contrato
     normalizado; falhas não são transformadas em sucesso vazio.
   - Método, data e resultado da verificação são registrados.
-- **Dependências:** T-17, T-26.
+- **Dependências:** T-17, T-26, T-28, T-41.
 - **Arquivos prováveis:** `src/services/weatherService.ts`,
   `plans/weather-app-plan.md`.
 - **Tipo:** Test.
@@ -612,7 +671,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
     qualquer item pendente bloqueia a publicação.
   - A solução não introduz GPS, contas, histórico, persistência de consultas
     ou persistência de preferências.
-- **Dependências:** T-26.
+- **Dependências:** T-26, T-41.
 - **Arquivos prováveis:** `README.md`, `plans/weather-app-plan.md`.
 - **Tipo:** Infra.
 - **Rastreabilidade:** NFR-08.
@@ -628,7 +687,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
     tarefas da NFR-02; a meta é atingida somente se pelo menos quatro
     participantes completarem todas as tarefas.
   - Nenhuma meta é declarada cumprida sem a evidência correspondente.
-- **Dependências:** T-28.
+- **Dependências:** T-28, T-41.
 - **Arquivos prováveis:** `README.md`.
 - **Tipo:** Infra.
 - **Rastreabilidade:** NFR-02.
@@ -645,7 +704,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
     aplicação e da fonte; cada p95 de ponta a ponta é comparado com a meta de
     até 3 segundos da NFR-03.
   - Nenhuma meta é declarada cumprida sem a evidência correspondente.
-- **Dependências:** T-28, T-35, T-36.
+- **Dependências:** T-28, T-35, T-36, T-41.
 - **Arquivos prováveis:** `plans/weather-app-plan.md`, `README.md`.
 - **Tipo:** Test.
 - **Rastreabilidade:** NFR-03.
@@ -660,50 +719,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
     utilizável da fonte; método, janela e exclusões são registrados.
   - Cada percentual é comparado com a meta de 99,5% da NFR-04.
   - Nenhuma meta é declarada cumprida sem a evidência correspondente.
-- **Dependências:** T-35, T-36.
+- **Dependências:** T-26, T-35, T-36, T-41.
 - **Arquivos prováveis:** `plans/weather-app-plan.md`, `README.md`.
 - **Tipo:** Infra.
 - **Rastreabilidade:** NFR-04.
-
-### T-41 — Validar lint e build
-
-- **Descrição:** Executar as verificações estáticas e o build de produção antes
-  da entrega.
-- **Critérios de aceite:**
-  - `pnpm lint` e `pnpm build` concluem sem falhas.
-  - Os resultados são registrados; falhas são corrigidas em tarefas focadas e
-    os comandos afetados são executados novamente.
-- **Dependências:** T-20, T-22, T-25, T-26.
-- **Arquivos prováveis:** `package.json`.
-- **Tipo:** Test.
-- **Rastreabilidade:** Habilitadora técnica para validar a implementação de
-  FR-01 a FR-06; checklist de entrega do plano.
-
-### T-42 — Validar testes unitários e de componentes
-
-- **Descrição:** Executar os testes automatizados unitários e de componentes
-  antes da entrega.
-- **Critérios de aceite:**
-  - `pnpm test` conclui sem falhas e o resultado é registrado.
-  - Testes unitários e de componentes não dependem da disponibilidade real da
-    Open-Meteo.
-  - Falhas são corrigidas em tarefas focadas e os testes afetados são
-    executados novamente.
-- **Dependências:** T-20, T-22, T-25.
-- **Arquivos prováveis:** `package.json`.
-- **Tipo:** Test.
-- **Rastreabilidade:** FR-01 a FR-06; NFR-05.
-
-### T-43 — Validar testes E2E
-
-- **Descrição:** Executar a suíte Playwright antes da entrega.
-- **Critérios de aceite:**
-  - `pnpm test:e2e` conclui sem falhas e o resultado é registrado.
-  - Os cenários E2E usam fixtures/interceptações e não dependem da
-    disponibilidade real da Open-Meteo.
-  - Falhas são corrigidas em tarefas focadas e os testes afetados são
-    executados novamente.
-- **Dependências:** T-28, T-29, T-30, T-31.
-- **Arquivos prováveis:** `package.json`.
-- **Tipo:** Test.
-- **Rastreabilidade:** NFR-01, NFR-05.
