@@ -119,3 +119,77 @@ test.describe('Weather App — viewport mobile (375x812)', () => {
     ).toBe(true);
   });
 });
+
+test.describe('Weather App — falha da API e resposta parcial', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
+    await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
+      route.fulfill({ json: geocodingResponse }),
+    );
+  });
+
+  test('exibe erro com retry quando a previsão falha e recupera na nova tentativa', async ({
+    page,
+  }) => {
+    let forecastCalls = 0;
+    await page.route('https://api.open-meteo.com/**', (route) => {
+      forecastCalls += 1;
+      return forecastCalls === 1
+        ? route.fulfill({ status: 503, json: { error: true, reason: 'Service unavailable' } })
+        : route.fulfill({ json: forecastResponse });
+    });
+    await page.goto('/');
+
+    await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+    await expect(page.getByRole('alert')).toContainText('HTTP 503');
+    await expect(page.getByText('Nenhuma cidade encontrada')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Tentar novamente' }).click();
+
+    await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    expect(forecastCalls).toBe(2);
+  });
+
+  test('comunica falha de rede na previsão sem exibir dados', async ({ page }) => {
+    await page.route('https://api.open-meteo.com/**', (route) => route.abort('failed'));
+    await page.goto('/');
+
+    await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+    await expect(page.getByRole('alert')).toHaveText('Falha de rede.');
+    await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Previsão de 5 dias' })).toHaveCount(0);
+  });
+
+  test('mantém os cinco dias e marca dados ausentes como Indisponível', async ({ page }) => {
+    await page.route('https://api.open-meteo.com/**', (route) =>
+      route.fulfill({
+        json: {
+          ...forecastResponse,
+          current: { time: '2026-01-10T12:00', temperature_2m: 20 },
+          daily: {
+            time: ['2026-01-10', '2026-01-11'],
+            weather_code: [0, 1],
+            temperature_2m_max: [25, null],
+            temperature_2m_min: [15, 16],
+          },
+        },
+      }),
+    );
+    await page.goto('/');
+
+    await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+    await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
+    const cards = page.getByRole('region', { name: 'Previsão de 5 dias' }).getByRole('listitem');
+    await expect(cards).toHaveCount(5);
+    await expect(cards.nth(0).getByText('25 °C')).toBeVisible();
+    await expect(cards.nth(1).getByText('Indisponível')).toHaveCount(2);
+    await expect(cards.nth(4).getByText('14/01')).toBeVisible();
+    await expect(cards.nth(4).getByText('Indisponível')).toHaveCount(4);
+  });
+});

@@ -8,14 +8,27 @@ export class WeatherServiceError extends Error {
   }
 }
 
-async function fetchWithTimeout(url: string): Promise<Response> {
+interface JsonResponse {
+  response: Response;
+  data: unknown;
+  invalidJson: boolean;
+}
+
+// O timeout de 10 s cobre a requisição inteira, inclusive a leitura do corpo (AC-05.5).
+async function fetchJsonWithTimeout(url: string): Promise<JsonResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
 
   try {
-    return await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { signal: controller.signal });
+    try {
+      return { response, data: await response.json(), invalidJson: false };
+    } catch (error) {
+      if (error instanceof SyntaxError) return { response, data: undefined, invalidJson: true };
+      throw error;
+    }
   } catch (error) {
-    if (isRecord(error) && error.name === 'AbortError') {
+    if (controller.signal.aborted || (isRecord(error) && error.name === 'AbortError')) {
       throw new WeatherServiceError('A requisição demorou demais.');
     }
     throw new WeatherServiceError('Falha de rede.');
@@ -57,21 +70,14 @@ export async function searchCities(name: string): Promise<City[]> {
   const query = name.trim();
   if (!query) return [];
 
-  const response = await fetchWithTimeout(
+  const { response, data, invalidJson } = await fetchJsonWithTimeout(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=pt&format=json`,
   );
   if (!response.ok) {
     throw new WeatherServiceError(`Erro ao buscar cidades (HTTP ${response.status}).`);
   }
-
-  let data: unknown;
-  try {
-    data = await response.json();
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      throw new WeatherServiceError('Resposta de geocoding com JSON inválido.');
-    }
-    throw error;
+  if (invalidJson) {
+    throw new WeatherServiceError('Resposta de geocoding com JSON inválido.');
   }
   if (!isRecord(data) || data.error === true) {
     throw new WeatherServiceError('Resposta de geocoding inválida.');
@@ -121,20 +127,15 @@ function toSourceLocalTime(value: unknown): string | null {
 }
 
 export async function getWeather(city: City): Promise<WeatherData> {
-  const response = await fetchWithTimeout(
+  const { response, data, invalidJson } = await fetchJsonWithTimeout(
     `https://api.open-meteo.com/v1/forecast?latitude=${city.latitude}&longitude=${city.longitude}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,precipitation,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=mm&timezone=auto&forecast_days=5`,
   );
-  let data: unknown;
-  try {
-    data = await response.json();
-  } catch (error) {
-    if (!response.ok) {
-      throw new WeatherServiceError(`Erro ao buscar previsão (HTTP ${response.status}).`);
-    }
-    if (error instanceof SyntaxError) {
-      throw new WeatherServiceError('Resposta de previsão com JSON inválido.');
-    }
-    throw error;
+  if (invalidJson) {
+    throw new WeatherServiceError(
+      response.ok
+        ? 'Resposta de previsão com JSON inválido.'
+        : `Erro ao buscar previsão (HTTP ${response.status}).`,
+    );
   }
   const reason =
     isRecord(data) && typeof data.reason === 'string' && data.reason.trim()

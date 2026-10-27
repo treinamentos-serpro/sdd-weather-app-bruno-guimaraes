@@ -93,6 +93,54 @@ describe.each([
     expect(signal?.aborted).toBe(true);
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('encerra como timeout quando o corpo não termina em 10 segundos', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, options: RequestInit) => {
+        const body = new ReadableStream({
+          start(controller) {
+            options.signal?.addEventListener('abort', () =>
+              controller.error(new DOMException('Aborted', 'AbortError')),
+            );
+          },
+        });
+        return new Response(body, { status: 200 });
+      }),
+    );
+
+    let outcome: unknown = 'pendente';
+    request().then(
+      () => {
+        outcome = 'sucesso';
+      },
+      (error: unknown) => {
+        outcome = error;
+      },
+    );
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(outcome).toEqual(new WeatherServiceError('A requisição demorou demais.'));
+  });
+
+  it('converte erro de rede durante a leitura do corpo em WeatherServiceError', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new TypeError('terminated'));
+            },
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    await expect(request()).rejects.toThrow(new WeatherServiceError('Falha de rede.'));
+  });
 });
 
 describe('searchCities', () => {
@@ -473,6 +521,89 @@ describe('searchCities', () => {
         new WeatherServiceError('Erro ao buscar previsão (HTTP 502).'),
       );
     });
+
+    it('ancora os cinco dias na data local de current.time, não em daily.time[0]', async () => {
+      const body = forecastResponse();
+      body.current.time = '2026-12-31T00:30';
+      mockResponse(body);
+
+      const { forecast } = await getWeather(city);
+
+      expect(forecast.map((day) => day.localDate)).toEqual([
+        '2026-12-31',
+        '2027-01-01',
+        '2027-01-02',
+        '2027-01-03',
+        '2027-01-04',
+      ]);
+      expect(forecast[0]).toMatchObject({ minimumCelsius: 0, maximumCelsius: 6, weatherCode: 1 });
+      expect(forecast[4]).toEqual({
+        localDate: '2027-01-04',
+        minimumCelsius: null,
+        maximumCelsius: null,
+        weatherCode: null,
+        descriptionPtBr: null,
+        precipitationProbabilityPercent: null,
+      });
+    });
+
+    it('não usa a data do dispositivo quando a fonte não fornece data local válida', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-12-30T12:00:00Z'));
+      mockResponse({
+        ...forecastResponse(),
+        current: { ...forecastResponse().current, time: 'ontem' },
+        daily: { ...forecastResponse().daily, time: ['2026-13-01', null] },
+      });
+
+      await expect(getWeather(city)).rejects.toThrow(
+        new WeatherServiceError('Resposta de previsão sem data local válida.'),
+      );
+    });
+
+    it('rejeita quando só há dados válidos fora da janela de cinco dias', async () => {
+      mockResponse({
+        current: { time: '2026-12-30T12:00', temperature_2m: null, weather_code: null },
+        daily: {
+          time: ['2027-01-04', '2027-01-05'],
+          temperature_2m_min: [10, 11],
+          temperature_2m_max: [20, 21],
+          weather_code: [0, 1],
+          precipitation_probability_max: [5, 6],
+        },
+      });
+
+      await expect(getWeather(city)).rejects.toThrow(
+        new WeatherServiceError('Resposta de previsão sem dados meteorológicos válidos.'),
+      );
+    });
+
+    it('aceita resposta em que só a temperatura atual é válida e marca o resto como ausente', async () => {
+      mockResponse({ current: { time: '2026-12-30T12:00', temperature_2m: -3.5 }, daily: {} });
+
+      const result = await getWeather(city);
+
+      expect(result.current).toMatchObject({
+        temperatureCelsius: -3.5,
+        weatherCode: null,
+        descriptionPtBr: null,
+      });
+      expect(result.forecast).toHaveLength(5);
+      expect(
+        result.forecast.every((day) => day.minimumCelsius === null && day.maximumCelsius === null),
+      ).toBe(true);
+    });
+
+    it.each([
+      [429, 'Too many requests'],
+      [503, 'Service unavailable'],
+    ])('trata limite/indisponibilidade HTTP %i como falha com motivo', async (status, reason) => {
+      mockResponse({ error: true, reason }, status);
+
+      await expect(getWeather(city)).rejects.toThrow(
+        new WeatherServiceError(`Erro ao buscar previsão (HTTP ${status}). ${reason}`),
+      );
+    });
   });
 
   it('apara e codifica o nome preservando acentos, espaços internos e pontuação', async () => {
@@ -535,7 +666,7 @@ describe('searchCities', () => {
     await expect(searchCities('Inexistente')).resolves.toEqual([]);
   });
 
-  it.each([400, 500])('lança WeatherServiceError para HTTP %i', async (status) => {
+  it.each([400, 429, 500, 503])('lança WeatherServiceError para HTTP %i', async (status) => {
     mockResponse({ results: [cityResult] }, status);
 
     await expect(searchCities('Lisboa')).rejects.toThrow(

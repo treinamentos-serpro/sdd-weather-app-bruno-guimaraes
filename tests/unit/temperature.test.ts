@@ -60,6 +60,35 @@ describe('formatTemperature', () => {
   });
 
   it.each([
+    [-0.5, 'celsius', '-1 °C'],
+    [0.5, 'celsius', '1 °C'],
+    [2.5, 'fahrenheit', '37 °F'],
+    [-27.5, 'fahrenheit', '-18 °F'],
+  ] as const)('desempata %s °C para longe de zero em %s: "%s"', (celsius, unit, expected) => {
+    expect(formatTemperature(celsius, unit)).toBe(expected);
+  });
+
+  it.each([
+    [-17.8, 'fahrenheit'],
+    [-0, 'celsius'],
+    [-0.4, 'celsius'],
+  ] as const)('nunca exibe "-0" para %s °C em %s', (celsius, unit) => {
+    expect(formatTemperature(celsius, unit)).toBe(`0 ${unitLabel(unit)}`);
+  });
+
+  it('comunica indisponível quando a conversão excede o intervalo numérico', () => {
+    expect(formatTemperature(Number.MAX_VALUE, 'celsius')).not.toBe('Indisponível');
+    expect(formatTemperature(Number.MAX_VALUE, 'fahrenheit')).toBe('Indisponível');
+  });
+
+  it('converte os exemplos de referência da spec nas duas direções (AC-04.2)', () => {
+    expect(formatTemperature(0, 'fahrenheit')).toBe('32 °F');
+    expect(formatTemperature(convertTemperature(32, 'fahrenheit', 'celsius'), 'celsius')).toBe(
+      '0 °C',
+    );
+  });
+
+  it.each([
     null,
     Number.NaN,
     Number.POSITIVE_INFINITY,

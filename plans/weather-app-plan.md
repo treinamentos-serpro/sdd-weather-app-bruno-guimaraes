@@ -502,11 +502,13 @@ arredondados.
 ## Error Handling
 
 No recorte atual, `searchCities` e `getWeather` compartilham o helper interno
-`fetchWithTimeout` em `src/services/weatherService.ts`. Ele passa um
-`AbortSignal` ao `fetch` e aborta após 10 segundos. Rejeições `AbortError`
-viram `WeatherServiceError("A requisição demorou demais.")`; demais falhas
-do `fetch` viram `WeatherServiceError("Falha de rede.")`. O timer é sempre
-liberado em `finally`. Validação HTTP e leitura do JSON permanecem nos serviços.
+`fetchJsonWithTimeout` em `src/services/weatherService.ts`. Ele passa um
+`AbortSignal` ao `fetch` e aborta após 10 segundos, cobrindo também a leitura
+do corpo JSON. Abortos viram `WeatherServiceError("A requisição demorou
+demais.")`; demais falhas do `fetch` ou da leitura do corpo viram
+`WeatherServiceError("Falha de rede.")`. JSON malformado é sinalizado ao
+serviço, sem lançar. O timer é sempre liberado em `finally`. Validação HTTP e
+da estrutura do JSON permanecem nos serviços.
 
 - Validar antes de enviar: consulta vazia/composta por espaços gera mensagem
   acessível e nenhuma chamada.
