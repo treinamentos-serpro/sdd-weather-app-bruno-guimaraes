@@ -481,6 +481,13 @@ arredondados.
 
 ## Error Handling
 
+No recorte atual, `searchCities` e `getWeather` compartilham o helper interno
+`fetchWithTimeout` em `src/services/weatherService.ts`. Ele passa um
+`AbortSignal` ao `fetch` e aborta após 10 segundos. Rejeições `AbortError`
+viram `WeatherServiceError("A requisição demorou demais.")`; demais falhas
+do `fetch` viram `WeatherServiceError("Falha de rede.")`. O timer é sempre
+liberado em `finally`. Validação HTTP e leitura do JSON permanecem nos serviços.
+
 - Validar antes de enviar: consulta vazia/composta por espaços gera mensagem
   acessível e nenhuma chamada.
 - Normalizar falhas em erros tipados recuperáveis: `network` para falha de

@@ -243,7 +243,10 @@ requisito funcional sem tarefa correspondente.
 - **Implementação parcial:** `searchCities` em `src/services/weatherService.ts`
   cobre consulta aparada e codificada, entrada vazia sem rede, mapeamento para
   `City[]` e `WeatherServiceError` para HTTP não-ok ou estrutura inválida.
-  Timeout e classificação de falhas de rede permanecem pendentes nesta tarefa.
+  Compartilha `fetchWithTimeout` com a previsão: `AbortController` limita o
+  `fetch` a 10 segundos, converte `AbortError` e falhas de rede em
+  `WeatherServiceError` e libera o timer em `finally`. Testes com timers
+  controlados verificam o limite e a limpeza após sucesso ou falha.
 - **Tipo:** Data.
 - **Rastreabilidade:** FR-01, FR-05; AC-01.4, AC-01.6, AC-05.2 a AC-05.5.
 
@@ -254,8 +257,10 @@ requisito funcional sem tarefa correspondente.
   Estruturas ausentes/inválidas e respostas sem dados utilizáveis lançam
   `WeatherServiceError`. O calendário parte de `current.time`; se inválido,
   usa a primeira data diária válida na posição inicial, sem consultar o
-  relógio do dispositivo. Testes usam `fetch` mockado. Timeout e classificação
-  de falhas de rede permanecem pendentes nesta tarefa.
+  relógio do dispositivo. Testes usam `fetch` mockado. O helper compartilhado
+  `fetchWithTimeout` aborta após 10 segundos, converte timeout e falhas de rede
+  em `WeatherServiceError` e limpa o timer em `finally`, com testes de limite
+  e liberação após sucesso ou falha.
 - **Descrição:** Encapsular a consulta de forecast por coordenadas, timeout,
   validação e normalização para o modelo de domínio.
 - **Critérios de aceite:**

@@ -23,7 +23,74 @@ function mockResponse(body: unknown, status = 200) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+describe.each([
+  {
+    operation: 'searchCities',
+    request: () => searchCities('Lisboa'),
+    body: { results: [cityResult] },
+  },
+  {
+    operation: 'getWeather',
+    request: () => getWeather({ ...cityResult, region: cityResult.admin1 }),
+    body: {
+      current: { time: '2026-12-30T12:00', temperature_2m: 20 },
+      daily: {},
+    },
+  },
+])('$operation: transporte', ({ request, body }) => {
+  it('limpa o timer após sucesso e não aborta a requisição concluída', async () => {
+    vi.useFakeTimers();
+    const fetchMock = mockResponse(body);
+
+    await request();
+
+    const signal: AbortSignal = fetchMock.mock.calls[0][1].signal;
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(signal.aborted).toBe(false);
+  });
+
+  it.each([
+    [new DOMException('Aborted', 'AbortError'), 'A requisição demorou demais.'],
+    [new TypeError('Failed to fetch'), 'Falha de rede.'],
+  ])('converte %s em WeatherServiceError e limpa o timer', async (error, message) => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
+
+    await expect(request()).rejects.toThrow(new WeatherServiceError(message));
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('aborta somente ao completar 10 segundos e limpa o timer', async () => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, options: RequestInit) => {
+        signal = options.signal ?? undefined;
+        return new Promise<Response>((_resolve, reject) => {
+          signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+        });
+      }),
+    );
+
+    const result = expect(request()).rejects.toThrow(
+      new WeatherServiceError('A requisição demorou demais.'),
+    );
+
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(signal?.aborted).toBe(false);
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await result;
+    expect(signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });
 
 describe('searchCities', () => {
@@ -65,6 +132,7 @@ describe('searchCities', () => {
 
       expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
         'https://api.open-meteo.com/v1/forecast?latitude=38.72509&longitude=-9.1498&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=celsius&timezone=auto&forecast_days=5',
+        { signal: expect.any(AbortSignal) },
       );
     });
 
@@ -210,11 +278,11 @@ describe('searchCities', () => {
       await expect(getWeather(city)).rejects.toThrow(WeatherServiceError);
     });
 
-    it('propaga falhas de rede', async () => {
+    it('converte falhas de rede em WeatherServiceError', async () => {
       const error = new TypeError('Falha de rede');
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
 
-      await expect(getWeather(city)).rejects.toBe(error);
+      await expect(getWeather(city)).rejects.toThrow(new WeatherServiceError('Falha de rede.'));
     });
 
     it('propaga JSON inválido sem produzir sucesso vazio', async () => {
@@ -231,6 +299,7 @@ describe('searchCities', () => {
 
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
       'https://geocoding-api.open-meteo.com/v1/search?name=S%C3%A3o%20Paulo%20%26%20regi%C3%A3o%3F&count=10&language=pt&format=json',
+      { signal: expect.any(AbortSignal) },
     );
   });
 
@@ -309,6 +378,6 @@ describe('searchCities', () => {
     const error = new TypeError('Falha de rede');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
 
-    await expect(searchCities('Lisboa')).rejects.toBe(error);
+    await expect(searchCities('Lisboa')).rejects.toThrow(new WeatherServiceError('Falha de rede.'));
   });
 });

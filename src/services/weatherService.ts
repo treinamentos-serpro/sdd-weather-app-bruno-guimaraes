@@ -8,6 +8,22 @@ export class WeatherServiceError extends Error {
   }
 }
 
+async function fetchWithTimeout(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } catch (error) {
+    if (isRecord(error) && error.name === 'AbortError') {
+      throw new WeatherServiceError('A requisição demorou demais.');
+    }
+    throw new WeatherServiceError('Falha de rede.');
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -41,7 +57,7 @@ export async function searchCities(name: string): Promise<City[]> {
   const query = name.trim();
   if (!query) return [];
 
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=pt&format=json`,
   );
   if (!response.ok) {
@@ -88,7 +104,7 @@ function toSourceLocalTime(value: unknown): string | null {
 }
 
 export async function getWeather(city: City): Promise<WeatherData> {
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://api.open-meteo.com/v1/forecast?latitude=${city.latitude}&longitude=${city.longitude}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=celsius&timezone=auto&forecast_days=5`,
   );
   if (!response.ok) {
