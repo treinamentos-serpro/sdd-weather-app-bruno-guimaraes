@@ -1,0 +1,304 @@
+# Plano Técnico — Weather App
+
+Este plano deriva da [especificação de produto](../specs/weather-app-spec.md).
+Os requisitos FR-01 a FR-06 e os critérios AC-01 a AC-06 são a referência para
+as decisões abaixo. Os tipos são contratos conceituais para orientar a
+implementação; não são código final.
+
+## Architecture
+
+Aplicação cliente sem backend próprio. A interface React coordena busca,
+seleção e apresentação; serviços isolam as chamadas HTTP e a normalização da
+Open-Meteo; funções puras formatam datas, descrições e temperaturas.
+
+```text
+React UI
+  ├─ Search / city selection ──> geocodingService ──> Open-Meteo Geocoding
+  └─ Selected city ────────────> weatherService ────> Open-Meteo Forecast
+           │                           │
+           └──── application state <───┘
+                      │
+             display / format helpers
+```
+
+- Separar a resposta externa do modelo de apresentação: serviços validam e
+  normalizam os dados antes de expô-los à UI.
+- Manter uma única aplicação web responsiva, sem API própria, banco de dados,
+  autenticação, analytics ou armazenamento de consultas/preferências.
+- Usar coordenadas da localidade selecionada para carregar o clima; não
+  resolver a cidade novamente pelo texto do nome.
+- Exibir a atribuição Open-Meteo exigida na tela de resultados, após confirmar
+  suas condições de uso antes da implementação.
+
+## Tech Stack
+
+| Área | Decisão | Motivo |
+|---|---|---|
+| Linguagem | TypeScript strict | Contratos explícitos para respostas externas e estados da UI. |
+| Interface | React 19 + Vite | Stack já configurada no repositório e adequada a uma SPA simples. |
+| Estilo | Tailwind CSS | Stack do projeto; permite interface responsiva e tema dark glassmorphism sem introduzir outra camada de UI. |
+| Dados | `fetch` nativo, encapsulado em `src/services/` | Evita dependência de cliente HTTP para duas operações simples. |
+| Testes | Vitest + Testing Library; Playwright para E2E | Ferramentas já previstas/configuradas no projeto. |
+| Qualidade | Biome | Lint e formatação definidos pelo projeto. |
+
+Não introduzir cache, gerenciamento de estado externo, persistência ou
+dependências adicionais sem necessidade demonstrada.
+
+## Project Structure
+
+Estrutura proposta para a implementação, ainda não existente no repositório:
+
+```text
+src/
+  components/
+    CitySearch.tsx        # Campo, envio, estados da busca e opções acessíveis
+    CityResults.tsx       # Condições atuais, cinco dias e atribuição
+    UnitToggle.tsx        # Controle Celsius/Fahrenheit
+  hooks/
+    useWeatherSearch.ts   # Orquestra busca, seleção, consulta e estados
+  services/
+    geocodingService.ts   # HTTP e normalização do geocoding
+    weatherService.ts     # HTTP e normalização da previsão
+  types/
+    weather.ts            # Contratos compartilhados de domínio e estados
+  utils/
+    temperature.ts        # Conversão e arredondamento
+    weatherCode.ts        # Mapeamento de códigos para pt-BR
+    date.ts               # Datas locais da cidade e formatação pt-BR
+tests/
+  unit/                   # Serviços, normalizadores e funções puras
+  e2e/                    # Fluxos principais com respostas de API controladas
+```
+
+Manter componentes pequenos e separar utilitários somente quando forem funções
+reutilizáveis ou puras que mereçam teste independente. Os nomes são uma
+proposta; o plano não exige criar arquivos além do necessário para as tarefas.
+
+## Data Model
+
+Contratos de domínio. `null` representa campo ausente ou inválido na resposta;
+esses valores são mostrados como indisponíveis e nunca formatados como
+temperaturas ou condições válidas.
+
+```ts
+type TemperatureUnit = "celsius" | "fahrenheit";
+
+interface CityCandidate {
+  id: number | null;
+  name: string;
+  country: string | null;
+  region: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+type SelectedCity = CityCandidate;
+
+interface WeatherCondition {
+  code: number | null;
+  descriptionPtBr: string | null;
+}
+
+interface CurrentConditions {
+  temperatureCelsius: number | null;
+  condition: WeatherCondition;
+  sourceLocalTime: string | null;
+  timeZone: string | null;
+  utcOffsetSeconds: number | null;
+}
+
+interface ForecastDay {
+  localDate: string; // YYYY-MM-DD no calendário local da cidade
+  minimumCelsius: number | null;
+  maximumCelsius: number | null;
+  condition: WeatherCondition;
+}
+
+interface WeatherReport {
+  city: SelectedCity;
+  current: CurrentConditions;
+  forecast: ForecastDay[]; // exatamente cinco datas consecutivas
+  forecastTimeZone: string | null;
+  forecastUpdatedAt: string | null; // somente se a fonte documentar campo confiável
+}
+```
+
+`forecast` deve conter cinco posições esperadas mesmo quando a fonte omitir
+uma data; valores ausentes permanecem `null`. A descrição em pt-BR é derivada
+de uma tabela explícita dos códigos meteorológicos WMO suportados; códigos
+desconhecidos não recebem descrição inventada. A camada de apresentação deriva
+temperaturas na unidade selecionada, arredondadas ao inteiro mais próximo com
+empates para longe de zero.
+
+Estados assíncronos devem distinguir `idle`, `loading`, `success`, `empty` e
+`error`. `empty` aplica-se a geocoding sem correspondências; não é estado de
+erro meteorológico.
+
+```ts
+type RetryRequest =
+  | { operation: "search"; query: string }
+  | { operation: "weather"; city: SelectedCity };
+
+interface WeatherAppError {
+  kind: "network" | "http" | "timeout" | "invalid-response";
+  retryRequest: RetryRequest;
+  messagePtBr: string;
+}
+```
+
+## Data Flow
+
+1. A pessoa informa uma cidade e envia pelo botão ou Enter. Remover apenas
+   espaços externos; string vazia não gera requisição e produz orientação para
+   preencher o campo.
+2. `geocodingService` codifica a consulta como parâmetro de URL, consulta a
+   Open-Meteo e preserva a ordem da resposta. O componente apresenta nome,
+   país e região disponíveis; se isso não distinguir homônimos, inclui as
+   coordenadas.
+3. Selecionar uma opção atualiza imediatamente a cidade ativa e inicia a
+   consulta meteorológica com suas coordenadas. Durante o carregamento, não
+   apresentar dados da cidade anterior como se fossem da nova seleção.
+4. `weatherService` valida a resposta e a normaliza para `WeatherReport`.
+   Usar a data local de `current.time` como início do calendário e gerar as
+   cinco datas com aritmética de data-only; associar os dados diários pela
+   string `YYYY-MM-DD`. Uma data diária ausente continua na lista como
+   indisponível e a data do dispositivo não interfere.
+5. A unidade vive na sessão da página, inicia em Celsius e somente transforma
+   valores para apresentação; não provoca nova consulta nem altera cidade ou
+   datas.
+6. Busca ou seleção mais recente prevalece: associe cada operação a um
+   identificador incremental e descarte respostas cujo identificador não seja
+   mais o ativo. Cancelamento de requisição pode reduzir trabalho, mas a
+   proteção contra resposta obsoleta é obrigatória independentemente dele.
+7. Uma nova tentativa reutiliza exatamente os parâmetros da operação que
+   falhou. Um acionamento não inicia operações duplicadas.
+
+## External APIs
+
+**Open-Meteo**, por HTTPS e sem chave fornecida pelo usuário, sujeito à
+validação prévia de cobertura, licença, atribuição, limites e disponibilidade.
+
+| Uso | Endpoint e parâmetros previstos |
+|---|---|
+| Geocoding | `https://geocoding-api.open-meteo.com/v1/search`; `name` com a consulta aparada, `count=10`, `language=pt`, `format=json`. Confirmar idioma/cobertura na documentação antes da implementação. |
+| Condições e previsão | `https://api.open-meteo.com/v1/forecast`; `latitude` e `longitude` da opção selecionada; `current=temperature_2m,weather_code`; `daily=weather_code,temperature_2m_max,temperature_2m_min`; `temperature_unit=celsius`; `timezone=auto`; `forecast_days=5`. |
+
+- Solicitações devem codificar corretamente acentos, espaços internos e
+  pontuação. Preservar a ordem dos resultados de geocoding.
+- O forecast é solicitado em Celsius; conversões para Fahrenheit e retorno a
+  Celsius são locais, evitando chamadas extras e perda de precisão por
+  conversão repetida.
+- Usar o timezone retornado e `current.time` como referência para o primeiro
+  dia local; associar previsões por `YYYY-MM-DD` e não pelo calendário/fuso do
+  dispositivo. Não inferir valores ou horários que a resposta não forneça.
+- Cada requisição expira em 10 segundos. Timeout, erro HTTP/rede ou resposta
+  estruturalmente inválida são falhas recuperáveis; lista válida vazia do
+  geocoding é resultado vazio.
+- Exibir a atribuição requerida pela Open-Meteo nos resultados. Não implementar
+  antes de confirmar texto/localização exigidos pela licença aplicável.
+
+## State Management
+
+Usar estado React local na página/hook que coordena o fluxo; não há necessidade
+de Redux, Context global ou armazenamento persistente.
+
+```ts
+type OperationState<T> =
+  | { status: "idle" }
+  | { status: "loading"; requestId: number }
+  | { status: "success"; data: T }
+  | { status: "empty" }
+  | { status: "error"; error: WeatherAppError };
+
+interface WeatherPageState {
+  query: string;
+  search: OperationState<CityCandidate[]>;
+  selectedCity: SelectedCity | null;
+  weather: OperationState<WeatherReport>;
+  unit: TemperatureUnit; // inicia em celsius; nunca persistida
+}
+```
+
+`empty` deve ser tratado como estado terminal válido apenas para busca.
+Operações de busca e previsão têm estados independentes. Ao mudar cidade,
+associar imediatamente a consulta ao novo alvo e não renderizar o resultado
+anterior sob o nome novo. Uma resposta assíncrona só pode atualizar o estado se
+seu `requestId` ainda for o atual para aquela operação.
+
+## Error Handling
+
+- Validar antes de enviar: consulta vazia/composta por espaços gera mensagem
+  acessível e nenhuma chamada.
+- Normalizar erros de rede, HTTP, timeout e payload para uma categoria interna
+  simples (`network`, `http`, `timeout`, `invalid-response`); apresentar
+  mensagem pt-BR clara sem expor detalhes técnicos.
+- Timeout de 10 segundos encerra carregamento e oferece nova tentativa. Retry
+  é somente por ação do usuário, repete os mesmos parâmetros e mantém a ação
+  disponível se falhar novamente.
+- Erros de busca não correspondem a resultados vazios. Geocoding válido sem
+  correspondências apresenta estado vazio e permite outra busca.
+- Campos ausentes, nulos, não numéricos ou não finitos são normalizados como
+  indisponíveis. Se a resposta meteorológica não puder ser interpretada ou não
+  houver nenhum campo meteorológico utilizável entre condições atuais e dias
+  previstos, tratar como falha recuperável.
+- Uma resposta parcialmente utilizável apresenta os campos válidos e indica
+  cada campo/dia ausente; não completar dados, datas ou descrições por
+  inferência.
+- Estados de carregamento, vazio, sucesso e erro devem ter comunicação
+  perceptível e acessível (incluindo leitores de tela); falha não deixa
+  carregamento ativo.
+- Condições atuais exibem o horário de referência da fonte no fuso local e
+  recebem indicação de desatualizadas se tiverem mais de duas horas. Se o
+  horário for ausente/inválido, não afirmar atualização nem desatualização.
+  Para previsão, só exibir atualização se houver campo confiável documentado.
+
+## Testing Strategy
+
+- **Unitários (Vitest):** testar conversões nos dois sentidos e empates para
+  longe de zero; mapeamento WMO; aparagem/codificação da consulta; normalização
+  de payloads completos, parciais, inválidos e não finitos; exatamente cinco
+  datas locais; comparação de horário de referência; timeout e classificação
+  de erro.
+- **Componentes (Testing Library):** busca por botão/Enter, validação vazia,
+  seleção por teclado, contexto geográfico/coordenadas, alternância de unidade,
+  indicação de indisponibilidade, carregamento, vazio, erro e retry.
+- **Concorrência:** controlar respostas de teste para comprovar que buscas
+  anteriores e consultas da cidade anterior não substituem a operação mais
+  recente; garantir que resultado e identificação de cidade permaneçam
+  consistentes.
+- **E2E (Playwright):** interceptar APIs com fixtures determinísticas; cobrir
+  fluxo de pesquisa → seleção → dados atuais/previsão → alternância e cenários
+  vazio, falha/retry, consulta lenta e dados parciais. Não depender da
+  disponibilidade real da Open-Meteo nos testes automatizados.
+- **Acessibilidade:** executar verificação automatizada e revisão manual por
+  teclado/foco em busca, carregamento, vazio, erro e resultados; automação não
+  substitui revisão manual.
+- **Aceite não funcional:** verificar ausência de rolagem horizontal a partir
+  de 320 px; suportar as duas versões estáveis mais recentes de Chrome, Edge,
+  Firefox e Safari (incluindo macOS/iOS), registrando browser, versão, sistema
+  e viewport. Conduzir teste moderado com ao menos cinco participantes
+  representativos (meta: quatro completam as tarefas sem ajuda).
+- **Medições antes da publicação:** registrar método, ambiente, rede, amostras,
+  população, janela e exclusões. Medir p95 de até três segundos para busca e
+  previsão separadamente, distinguindo aplicação e fonte, e disponibilidade
+  mensal de 99,5% da aplicação e da fonte separadamente.
+- Comandos locais previstos: `pnpm lint`, `pnpm build`, `pnpm test` e
+  `pnpm test:e2e`.
+
+## Risks & Trade-offs
+
+| Risco / trade-off | Decisão ou mitigação |
+|---|---|
+| Cobertura, limites, disponibilidade, licença ou atribuição da Open-Meteo podem não atender ao uso. | Validar todos antes da implementação; manter a fonte ou reabrir a decisão se a validação falhar. |
+| Localidades homônimas podem levar à consulta errada. | Mostrar contexto geográfico e, se insuficiente, coordenadas; consultar usando a seleção/coordenadas, nunca apenas o nome. |
+| Datas ou atualidade podem ser interpretadas incorretamente por diferença de fuso ou horário de verão. | Usar timezone e datas locais da fonte; validar semântica/documentação do horário antes de definir conversões. |
+| Respostas lentas, falhas ou concorrência podem deixar estado incorreto. | Timeout de 10 segundos, retry explícito, estados distinguíveis e descarte por identificador de requisição. |
+| Dados parciais podem parecer completos ou precisos. | Representar ausências como `null`, exibir indisponibilidade e não inferir valores; códigos de condição sem mapeamento também ficam indisponíveis. |
+| Converter sempre a resposta Celsius mantém modelo simples, mas adiciona conversão local. | Manter precisão de origem em Celsius e arredondar apenas na exibição; evita chamadas adicionais e dependência de payload em Fahrenheit. |
+| Clientes chamam a API diretamente, sem backend. | Adequado ao escopo sem autenticação/persistência; a aplicação não controla disponibilidade/limites e deve documentar os dados enviados por HTTPS e a atribuição. |
+| Logs do provedor de hospedagem podem conter dados técnicos. | Não adicionar analytics nem registrar termos/localidades pela aplicação; documentar provedor, região, retenção e responsável por incidentes antes da publicação. |
+| Metas de usabilidade, performance, disponibilidade, acessibilidade e compatibilidade exigem validação externa ao teste unitário. | Registrar evidências e condições de medição conforme NFR-01 a NFR-08 da especificação; não declarar conformidade sem a validação correspondente. |
+
+Fora do escopo desta versão: GPS, contas, favoritos, histórico, persistência
+local/de servidor, analytics, alertas, notificações, funcionamento offline
+garantido, idiomas além de pt-BR e outras conversões de grandezas.
