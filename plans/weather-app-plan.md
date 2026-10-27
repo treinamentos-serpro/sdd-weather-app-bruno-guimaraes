@@ -394,51 +394,101 @@ arredondados.
 
 ## Testing Strategy
 
-- **`lib/` (Vitest):** testar funções puras diretamente, sem renderização ou
-  mocks de rede: conversões nos dois sentidos e empates para longe de zero;
-  mapeamento WMO; normalização de payloads completos, parciais, inválidos e
-  não finitos; exatamente cinco datas locais; comparação de horário de
-  referência. Isso isola regras determinísticas e torna os casos de borda
-  rápidos e reproduzíveis.
-- **`services/` (Vitest):** controlar/mockar `fetch` para validar URLs,
-  parâmetros, codificação da consulta, timeout, respostas HTTP e falhas de
-  rede. Esses testes não dependem da disponibilidade da Open-Meteo e não
-  precisam renderizar componentes.
-- **`hooks/` (Testing Library):** verificar a coordenação dos estados
-  assíncronos, retry com os mesmos parâmetros, bloqueio de operações
-  duplicadas e descarte de respostas obsoletas. Serviços podem ser substituídos
-  por mocks para testar o fluxo sem tráfego de rede.
-- **`components/` (Testing Library):** testar comportamento observável e
-  acessível: busca por botão/Enter, validação vazia, seleção por teclado,
-  contexto geográfico/coordenadas, alternância de unidade, indicação de
-  indisponibilidade e apresentação de carregamento, vazio, erro e retry. Não
-  testar detalhes internos de implementação nem chamadas reais à API;
-  confirmar que alternar unidade atualiza os valores exibidos sem iniciar
-  outra requisição.
-- **Concorrência:** controlar respostas de teste para comprovar que buscas
-  anteriores e consultas da cidade anterior não substituem a operação mais
-  recente; garantir que resultado e identificação de cidade permaneçam
-  consistentes.
-- **E2E (Playwright):** interceptar APIs com fixtures determinísticas; cobrir
-  fluxo de pesquisa → seleção → dados atuais/previsão → alternância e cenários
-  vazio, falha/retry, consulta lenta e dados parciais. Não depender da
-  disponibilidade real da Open-Meteo nos testes automatizados.
-- **Acessibilidade:** executar verificação automatizada e revisão manual por
-  teclado/foco em busca, carregamento, vazio, erro e resultados; automação não
-  substitui revisão manual.
-- **Aceite não funcional:** verificar ausência de rolagem horizontal a partir
-  de 320 px; suportar as duas versões estáveis mais recentes de Chrome, Edge,
-  Firefox e Safari (incluindo macOS/iOS), registrando browser, versão, sistema
-  e viewport. Conduzir teste moderado com ao menos cinco participantes
-  representativos (meta: quatro completam as tarefas sem ajuda).
-- **Medições antes da publicação:** registrar método, ambiente, rede, amostras,
-  população, janela e exclusões. Medir p95 de até três segundos para busca e
-  previsão separadamente, distinguindo aplicação e fonte, e disponibilidade
-  mensal de 99,5% da aplicação e da fonte separadamente.
-- Comandos locais previstos: `pnpm lint`, `pnpm build`, `pnpm test` e
-  `pnpm test:e2e`.
+Concentrar regras determinísticas e casos de borda no Vitest; reservar o
+Playwright para jornadas integradas e comportamento no navegador. Manter
+rastreabilidade com os critérios AC-01 a AC-06 da especificação, sem usar
+percentual de cobertura como único critério de qualidade. A suíte automatizada
+principal não depende da disponibilidade real da Open-Meteo.
+
+### Vitest + Testing Library
+
+| Camada | Cobertura principal |
+|---|---|
+| Funções puras de conversão | Celsius ↔ Fahrenheit, incluindo `0 °C → 32 °F`, `100 °C → 212 °F` e `−40 °C → −40 °F`. Arredondamento com empates para longe de zero (`1,5 → 2`; `−1,5 → −2`). Preservação da precisão original e ausência de deriva ao alternar unidades repetidamente. |
+| Normalizadores e demais funções de `lib/` | Payloads completos, parciais e inválidos; campos ausentes, `null`, valores não numéricos, `NaN` e infinitos; códigos WMO conhecidos e desconhecidos. Exatamente cinco datas consecutivas no calendário da cidade, inclusive viradas de mês/ano e dias sem dados, sem depender do fuso do dispositivo. |
+| Horários e atualidade | Relógio controlado para verificar o limite de duas horas: exatamente duas horas não indica desatualização; mais de duas horas indica. Horário ausente/inválido não permite afirmar atualização nem desatualização. Incluir diferenças de fuso e horário de verão. |
+| Services com mock de `fetch` | Endpoint, parâmetros, codificação de acentos/espaços/pontuação e ordem do geocoding. Forecast com coordenadas da seleção, Celsius, `timezone=auto` e cinco dias. Sucesso, geocoding vazio, erro HTTP, erro declarado pela API, rejeição de rede, JSON inválido e resposta incompatível. |
+| Timeout e limpeza | Timers controlados para verificar expiração em 10 segundos, classificação como `timeout` e liberação de timers após sucesso/falha, sem aguardar dez segundos reais. Verificar cancelamento quando implementado; restaurar mocks e timers entre testes. |
+| Hook de orquestração | Transições de estado, independência entre busca e previsão, retry com os mesmos parâmetros, bloqueio de operações duplicadas e descarte de respostas obsoletas. Serviços substituídos por mocks, sem tráfego de rede. |
+| Componentes | Comportamento observável com Testing Library, roles, labels e interações de usuário. Evitar snapshots extensos e acoplamento a detalhes internos do React. |
+
+#### Matriz de estados e interações dos componentes
+
+- **Loading:** indicação acessível durante busca e previsão; operações
+  duplicadas impedidas; nenhum dado da cidade anterior apresentado sob a nova
+  seleção.
+- **Erro:** mensagem pt-BR, término do loading e ação de nova tentativa.
+  Falhas não podem ser apresentadas como lista vazia.
+- **Vazio:** geocoding sem correspondências informa a ausência e permite nova
+  busca. Não há estado vazio meteorológico: resposta totalmente inutilizável
+  é erro; parcialmente utilizável é sucesso com indisponibilidades.
+- **Sucesso:** contexto geográfico e coordenadas quando necessárias, condições
+  atuais, cinco dias, campos indisponíveis e atribuição Open-Meteo.
+- **Interações:** busca por botão e Enter; consulta em branco orienta a correção
+  sem chamar serviços; seleção por teclado; alternância de todas as
+  temperaturas sem iniciar outra requisição nem modificar valores canônicos.
+- **Concorrência:** controlar a ordem de conclusão das respostas para comprovar
+  que buscas anteriores e previsões da cidade anterior não substituem a
+  operação mais recente. Resultado e identificação da cidade permanecem
+  consistentes, inclusive quando a resposta obsoleta é uma falha.
+
+### Playwright: fluxos E2E e viewport mobile
+
+Interceptar geocoding e forecast com fixtures determinísticas, mantendo a
+aplicação integrada da interface aos services. Controlar atrasos e ordem das
+respostas; usar asserções com espera automática em vez de sleeps fixos.
+
+| Cenário E2E | Verificação |
+|---|---|
+| Jornada principal | Pesquisar → selecionar cidade → visualizar condições atuais e cinco dias → alternar °C/°F. Confirmar coordenadas enviadas e ausência de chamadas extras na alternância. |
+| Validação e resultado vazio | Consulta em branco não gera request; nenhuma correspondência produz orientação e permite nova pesquisa. |
+| Falha e recuperação | Falhas de busca e previsão, separadamente; retry explícito envia os mesmos parâmetros e pode recuperar o fluxo. |
+| Latência e concorrência | Resposta atrasada torna loading observável; respostas antigas não substituem a busca ou cidade mais recente. |
+| Dados parciais | Campos e dias ausentes aparecem como indisponíveis, sem deslocar datas ou inventar valores. |
+| Teclado e acessibilidade | Completar o fluxo sem mouse; verificar foco, nomes acessíveis e comunicação de estados. Complementar com auditoria automatizada e revisão manual. |
+| Viewport mobile | Executar a jornada principal em 320 px de largura e em um viewport mobile representativo de 390 × 844. Validar controles acessíveis, leitura dos cinco dias e ausência de rolagem horizontal em loading, erro, vazio e sucesso. |
+
+Executar em Chromium, Firefox e WebKit. Emulação mobile e WebKit não comprovam,
+sozinhos, compatibilidade com Safari/iOS ou com as duas versões estáveis mais
+recentes exigidas. Complementar com validação nas versões-alvo de Chrome,
+Edge, Firefox e Safari (incluindo macOS/iOS), registrando browser, versão,
+sistema e viewport.
+
+### Validação e limites da evidência
+
+- Executar `pnpm lint`, `pnpm build`, `pnpm test` e `pnpm test:e2e`, após
+  confirmar a disponibilidade dos scripts na implementação.
+- Mocks e fixtures garantem repetibilidade, mas não validam o contrato atual
+  nem a disponibilidade da Open-Meteo. Fazer verificação de integração real
+  separada, sem tornar a suíte principal dependente da fonte.
+- Automação de acessibilidade não substitui revisão manual de teclado, foco
+  e leitores de tela nos estados de busca, loading, vazio, erro e resultados.
+- Conduzir teste moderado com ao menos cinco participantes representativos
+  (meta: quatro completam as tarefas sem ajuda).
+- Antes da publicação, registrar método, ambiente, rede, amostras, população,
+  janela e exclusões. Medir p95 de até três segundos para busca e previsão
+  separadamente, distinguindo aplicação e fonte, e disponibilidade mensal de
+  99,5% da aplicação e da fonte separadamente. Testes com fixtures não
+  comprovam essas metas.
 
 ## Risks & Trade-offs
+
+### Decisões técnicas e alternativas consideradas
+
+| Decisão | Benefício e custo | Alternativa considerada |
+|---|---|---|
+| SPA sem backend, com acesso direto à Open-Meteo | Menor complexidade operacional; cliente fica exposto à disponibilidade, limites e restrições de acesso da fonte. | Backend/BFF para centralizar cache, observabilidade e controle de tráfego; adiciona infraestrutura e manutenção, sem necessidade demonstrada neste escopo. |
+| `fetch` nativo com services isolados | Evita dependência para duas operações; timeout, classificação de erros e validação precisam ser implementados explicitamente. | Axios ou cliente gerado oferecem conveniências, mas aumentam dependências ou exigem contrato adequado para geração. |
+| Estado local em hook, sem cache externo | Adequado ao escopo e sem estado global desnecessário; concorrência e retry ficam sob responsabilidade da aplicação. | TanStack Query para estado remoto/cache; Redux ou Context para compartilhamento entre áreas. Não se justificam inicialmente. |
+| Celsius canônico e conversão local | Alternância imediata, sem requests e sem perda cumulativa de precisão; exige regra de conversão e arredondamento bem testada. | Solicitar Fahrenheit à API aumenta tráfego e complexidade de sincronização. |
+| Normalização na fronteira e ausência como `null` | UI independente do payload externo e tratamento explícito de dados parciais; adiciona mapeamento e validação. | Consumir payload diretamente aumenta acoplamento; rejeitar qualquer resposta parcial descarta dados úteis. |
+| Calendário e fuso da cidade | Evita exibir dias incorretos; exige cuidado com datas locais e horário de verão. | Usar o fuso do dispositivo é mais simples, mas viola o requisito. Biblioteca temporal pode ajudar se a complexidade justificar a dependência. |
+| Timeout de 10 segundos e retry manual | Limita espera e evita tentativas invisíveis; usuário precisa agir para recuperar falhas transitórias. | Retry automático com backoff melhora alguns casos, mas amplia tráfego e contraria o comportamento especificado. |
+| Identificador de requisição contra respostas obsoletas | Garante que a última operação prevaleça; requer controle explícito por operação. | Apenas `AbortController` reduz trabalho, mas não substitui a garantia lógica contra respostas antigas; pode ser usado como complemento. |
+| Maior cobertura no Vitest e fixtures no E2E | Suíte rápida e previsível; pode divergir da API real e não reproduzir todas as condições de produção. | E2E majoritariamente contra API real traz maior realismo, porém instabilidade, lentidão e consumo de limites; manter integração real como verificação separada. |
+| Tailwind com dark glassmorphism | Consistência com a stack e composição responsiva; transparências exigem atenção a contraste e desempenho. | CSS Modules ou biblioteca de UI são viáveis, mas adicionam outra abordagem e não garantem acessibilidade automaticamente. |
+
+### Riscos e mitigação
 
 | Risco / trade-off | Decisão ou mitigação |
 |---|---|
