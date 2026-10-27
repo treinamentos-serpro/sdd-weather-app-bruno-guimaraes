@@ -8,9 +8,11 @@ selecionar uma cidade, consultar suas condições atuais e ver a previsão de
 cinco dias — hoje e os quatro dias seguintes — com temperaturas em Celsius ou
 Fahrenheit.
 
-- **Fonte meteorológica definida:** Open-Meteo, sem exigir API key do usuário.
-  Antes da implementação, confirmar cobertura, atribuição, limites e condições
-  de uso; incluir a atribuição exigida pela fonte na interface.
+- **Fonte meteorológica definida:** Open-Meteo, sem exigir API key do usuário,
+  para localidades em todo o mundo dentro da cobertura oferecida pela fonte.
+  Antes da implementação, validar cobertura, licença, atribuição, limites e
+  disponibilidade para o uso pretendido; exibir a atribuição exigida na tela
+  de resultados.
 - **Unidade inicial:** Celsius.
 - **Idioma da interface:** português do Brasil (pt-BR).
 - **Acesso:** interface web responsiva, incluindo dispositivos móveis.
@@ -22,9 +24,9 @@ Fahrenheit.
 
 O sucesso do fluxo principal é o usuário conseguir identificar a cidade correta
 e entender suas condições atuais e a previsão para os próximos cinco dias. As
-decisões confirmadas definem o escopo desta versão. As metas marcadas como
-propostas e os itens de publicação pendentes ao final deste documento exigem
-aprovação antes de serem tratados como compromissos de produção.
+decisões confirmadas definem o escopo desta versão. As metas quantitativas
+aprovadas e os itens de validação pendentes ao final deste documento devem ser
+medidos ou concluídos antes da publicação.
 
 ## Functional Requirements
 
@@ -188,17 +190,17 @@ observáveis para validação automatizada.
     identificado como indisponível, sem inventar valores ou apresentar conteúdo
     de outra cidade.
 - **AC-02.5**
-  - **Given:** a fonte retornou um horário de referência adequado para os dados
-    meteorológicos.
-  - **When:** o sistema apresenta os dados da cidade.
-  - **Then:** exibe esse horário no fuso local da cidade e identifica os dados
-    como desatualizados se o horário tiver mais de duas horas.
+  - **Given:** a fonte retornou um horário de referência adequado para as
+    condições atuais.
+  - **When:** o sistema apresenta as condições atuais da cidade.
+  - **Then:** exibe esse horário no fuso local da cidade e identifica as
+    condições como desatualizadas se o horário tiver mais de duas horas.
 - **AC-02.6**
-  - **Given:** a fonte não fornece horário de referência ou fornece um horário
-    inválido.
+  - **Given:** a fonte não fornece horário de referência adequado para as
+    condições atuais ou fornece um horário inválido.
   - **When:** o sistema apresenta as condições atuais.
-  - **Then:** não inventa um horário nem afirma que os dados estão atualizados;
-    os campos meteorológicos válidos continuam disponíveis.
+  - **Then:** não inventa um horário nem afirma que os dados estão atualizados
+    ou desatualizados; os campos meteorológicos válidos continuam disponíveis.
 
 ### Para FR-03 — Consultar a previsão de cinco dias
 
@@ -332,30 +334,30 @@ observáveis para validação automatizada.
 
 ## Non-Functional Requirements
 
-Os valores marcados como **meta proposta** são parâmetros para aprovação. Não
-são critérios de aceite de produção até que responsáveis, ambiente, método e
-eventuais exclusões de medição sejam acordados.
+As metas quantitativas abaixo foram aprovadas para esta versão. Os resultados
+devem ser registrados com o ambiente, método, período e exclusões especificados.
 
 - **NFR-01 — Responsividade:** a interface deve adaptar conteúdo e controles a
-  diferentes larguras de tela. **Meta proposta:** a partir de 320 px de largura,
+  diferentes larguras de tela. **Meta aprovada:** a partir de 320 px de largura,
   as funções principais permanecem disponíveis sem rolagem horizontal.
 - **NFR-02 — Usabilidade:** busca, consulta da previsão e alternância de unidade
   devem ser compreensíveis sem treinamento ou documentação externa. **Método
-  proposto:** teste moderado com pelo menos cinco participantes representativos;
+  aprovado:** teste moderado com pelo menos cinco participantes representativos;
   pelo menos quatro devem completar, sem ajuda, a busca e seleção de cidade, a
   identificação da previsão de cinco dias e a alternância de unidade. Registrar
   participantes, tarefas, resultados e impedimentos; validar a representatividade
   dos participantes antes do teste.
-- **NFR-03 — Desempenho:** **meta proposta:** 95% das consultas apresentam
+- **NFR-03 — Desempenho:** **meta aprovada:** 95% das consultas apresentam
   resultados em até 3 segundos. Medir, em janela mensal, o percentil 95 do
   tempo entre o envio da busca/seleção e a exibição do resultado para consultas
   concluídas com sucesso; medir busca e previsão separadamente, reportar o
   tempo da aplicação e o da fonte externa separadamente e documentar ambiente,
   rede, volume de amostras e população usados na medição.
-- **NFR-04 — Disponibilidade:** **meta proposta:** disponibilidade mensal de
-  99,5%. Definir previamente o que constitui indisponibilidade, calcular a
-  disponibilidade da aplicação e a da fonte externa em métricas separadas,
-  sobre o total de minutos do mês, e publicar janela e exclusões adotadas.
+- **NFR-04 — Disponibilidade:** **meta aprovada:** disponibilidade mensal de
+  99,5% tanto para a aplicação quanto para a fonte externa. Medir separadamente
+  a disponibilidade da aplicação (carregamento da interface hospedada) e a da
+  fonte externa (resposta utilizável do serviço), sobre o total de minutos do
+  mês; registrar método de verificação, janela e exclusões adotadas.
 - **NFR-05 — Acessibilidade:** as telas principais devem atender ao WCAG 2.2
   nível AA, incluindo operação por teclado, foco visível, contraste adequado,
   nomes acessíveis para controles e comunicação acessível de estados dinâmicos.
@@ -364,20 +366,26 @@ eventuais exclusões de medição sejam acordados.
   busca, carregamento, vazio, erro e resultados; registrar e corrigir violações
   WCAG 2.2 AA identificadas. A verificação automatizada, isoladamente, não
   comprova conformidade.
-- **NFR-06 — Compatibilidade:** navegadores e versões suportados devem ser
-  aprovados antes da publicação. Os testes de aceite devem registrar
+- **NFR-06 — Compatibilidade:** suportar as duas versões estáveis mais recentes
+  disponíveis na data de cada ciclo de aceite de Chrome, Edge, Firefox e Safari,
+  incluindo Safari em macOS e iOS. Os testes de aceite devem registrar
   navegador, versão, sistema operacional e viewport em que foram executados.
-- **NFR-07 — Atualidade dos dados:** deve ser possível informar o horário
-  de referência fornecido pela fonte, no fuso local da cidade. Dados cujo
-  horário de referência tenha mais de duas horas devem ser identificados como
-  desatualizados. Antes da implementação, confirmar que a fonte fornece um
-  horário de referência adequado e documentar sua semântica.
+- **NFR-07 — Atualidade dos dados:** para as condições atuais, exibir o horário
+  de referência retornado pela fonte no fuso local da cidade; identificar as
+  condições atuais como desatualizadas quando esse horário tiver mais de duas
+  horas. Para a previsão, exibir o horário de geração/atualização somente se a
+  fonte fornecer um campo confiável e documentado; caso contrário, não afirmar
+  que a previsão está atualizada nem desatualizada. Não substituir o horário da
+  fonte pelo horário do dispositivo ou da consulta.
 - **NFR-08 — Privacidade e segurança:** os dados coletados, suas finalidades e
   períodos de retenção devem ser documentados antes da publicação. O nome da
-  cidade e a localidade selecionada são enviados à Open-Meteo para atender à
-  consulta; essa transmissão deve ocorrer por HTTPS. Nesta versão não há GPS,
-  contas, histórico nem persistência local ou no servidor de consultas ou
-  preferências.
+  cidade e a localidade selecionada são enviados à Open-Meteo por HTTPS para
+  atender à consulta. Não haverá analytics; a hospedagem poderá manter somente
+  logs técnicos mínimos, sem armazenar termos de busca ou localidades
+  pesquisadas pela aplicação. O provedor, a região de armazenamento e o prazo
+  de retenção desses logs devem ser documentados antes da publicação. Nesta
+  versão não há GPS, contas, histórico nem persistência local ou no servidor
+  de consultas ou preferências.
 
 ## Edge Cases
 
@@ -428,22 +436,38 @@ eventuais exclusões de medição sejam acordados.
   apresentação de dados previamente consultados ainda não está definida.
 - Se uma versão futura incluir localização por GPS e o usuário não conceder
   permissão, a busca manual deverá continuar disponível como alternativa.
-- O horário de referência informado pela fonte tem mais de duas horas; os
-  dados são identificados como desatualizados, sem alterar ou ocultar
-  silenciosamente os valores retornados.
+- O horário de referência informado pela fonte para as condições atuais tem
+  mais de duas horas; esses dados são identificados como desatualizados, sem
+  alterar ou ocultar silenciosamente os valores retornados. A previsão só
+  recebe rótulo de atualização/desatualização quando houver horário de
+  geração/atualização confiável fornecido pela fonte.
 
 ## Assumptions
 
 - A consulta começa com a pesquisa e seleção explícita de uma cidade.
-- A fonte meteorológica será Open-Meteo e não será necessária API key para o
-  usuário consultar o serviço; cobertura, atribuição, limites e condições de
-  uso serão confirmados antes da implementação.
+- A fonte meteorológica será Open-Meteo, sem API key para o usuário, para
+  localidades em todo o mundo dentro da cobertura da fonte. Cobertura, licença,
+  atribuição, limites e disponibilidade para o uso pretendido serão validados
+  antes da implementação; a atribuição exigida será exibida na tela de
+  resultados.
 - “Cinco dias” significa hoje e os quatro dias seguintes, decisão já registrada
   na discovery.
 - As datas da previsão devem respeitar o fuso horário da cidade selecionada.
 - Celsius é a unidade inicial; Fahrenheit também poderá ser selecionada.
 - A interface desta versão será web responsiva, em português do Brasil.
 - Não haverá autenticação nem persistência de dados do usuário no servidor.
+- Não haverá analytics. A hospedagem poderá manter somente logs técnicos
+  mínimos; termos de busca e localidades pesquisadas não serão armazenados pela
+  aplicação. Região e prazo de retenção dos logs do provedor serão divulgados
+  antes da publicação.
+- A compatibilidade desta versão abrange as duas versões estáveis mais
+  recentes na data de cada ciclo de aceite de Chrome, Edge, Firefox e Safari,
+  incluindo Safari em macOS e iOS.
+- As metas aprovadas são: funções principais sem rolagem horizontal a partir
+  de 320 px; pelo menos quatro de cinco participantes representativos completam
+  as tarefas de usabilidade sem ajuda; p95 de até três segundos para consultas
+  bem-sucedidas; e disponibilidade mensal de 99,5%, medida separadamente para
+  a aplicação e para a fonte externa.
 - As personas são hipóteses para orientar a especificação e não foram
   confirmadas por pesquisa com usuários.
 - Não se presume persistência local de preferências, favoritos ou histórico.
@@ -454,12 +478,12 @@ eventuais exclusões de medição sejam acordados.
 |---|---|---|
 | Indisponibilidade, lentidão, limites ou cobertura insuficiente da Open-Meteo | Consultas podem falhar, demorar ou não atender a certas localidades. | Confirmar cobertura, atribuição e condições de uso; monitorar falhas e latência; aplicar timeout de 10 segundos e permitir nova tentativa. |
 | Seleção de cidade homônima incorreta | O usuário pode tomar decisões com dados de outra localidade. | Exibir contexto geográfico e, quando insuficiente, coordenadas; associar consultas ao identificador ou às coordenadas selecionadas. |
-| Dados desatualizados ou previsão interpretada como garantia | Decisões podem ser baseadas em dados antigos ou em estimativas mal compreendidas. | Exibir o horário de referência da fonte, sinalizar dados com mais de duas horas e comunicar que a previsão é estimativa. |
+| Dados desatualizados ou previsão interpretada como garantia | Decisões podem ser baseadas em dados antigos ou em estimativas mal compreendidas. | Exibir o horário de referência para as condições atuais, sinalizá-las como desatualizadas após duas horas e comunicar que a previsão é estimativa. |
 | Datas agrupadas incorretamente por fuso horário ou horário de verão | A previsão pode aparecer no dia local errado. | Usar as datas e o fuso da cidade e validar mudanças de data e horário de verão. |
-| Metas propostas sem método de medição | Desempenho e disponibilidade podem ser medidos de formas incompatíveis ou não ser verificáveis. | Aprovar condições e método de medição; distinguir métricas da aplicação e da fonte. |
+| Medições de desempenho e disponibilidade inconsistentes | Resultados podem não ser comparáveis ou verificáveis. | Registrar ambiente, amostras, rede, método, janela e exclusões; medir a aplicação e a fonte externa separadamente. |
 | Idioma, formatos ou unidades não alinhados ao público | A informação pode ser confusa ou reduzir a confiança nos dados. | Confirmar público, formatos e apresentação das grandezas antes da implementação. |
 | Barreiras de acessibilidade ou incompatibilidade | Pessoas podem não conseguir operar a busca ou interpretar seus resultados. | Definir navegadores suportados e validar teclado, foco, contraste, nomes acessíveis, estados dinâmicos e tamanhos de tela. |
-| Coleta de localização ou outros dados sem expectativa clara | Pode haver perda de confiança e riscos de privacidade. | Nesta versão, não coletar localização por GPS nem manter histórico; documentar dados de consulta transmitidos à fonte, finalidades e retenção antes da publicação. |
+| Coleta de localização ou outros dados sem expectativa clara | Pode haver perda de confiança e riscos de privacidade. | Nesta versão, não coletar localização por GPS, não usar analytics e não manter histórico; documentar dados de consulta transmitidos à fonte e logs técnicos do provedor, finalidades e retenção antes da publicação. |
 
 ## Out of Scope
 
@@ -472,28 +496,34 @@ eventuais exclusões de medição sejam acordados.
 - Alertas meteorológicos e notificações.
 - Cidades favoritas, histórico de consultas e persistência local de preferências
   ou dados meteorológicos, até que esses recursos sejam definidos.
+- Ferramentas de analytics e armazenamento, pela aplicação, de termos ou
+  localidades pesquisadas.
 - Funcionamento offline como requisito garantido.
 - Idiomas de interface além de pt-BR e conversão de grandezas além de Celsius e
   Fahrenheit para temperatura.
 
 ## Open Questions
 
-As decisões abaixo são pendências de aprovação, não funcionalidades implícitas.
-As quatro primeiras são bloqueadores de publicação; as demais só entram no
-escopo se forem aprovadas e especificadas em uma versão futura.
+As decisões de escopo para esta versão foram aprovadas. As verificações abaixo
+continuam sendo pré-condições de implementação ou publicação; não representam
+funcionalidades implícitas. Os itens de versões futuras só entram no escopo se
+forem aprovados e especificados em uma versão futura.
 
-### Bloqueadores de publicação
+### Validações antes da implementação ou publicação
 
-1. A Open-Meteo atende à cobertura geográfica e aos requisitos de licença,
-   atribuição, limites e disponibilidade do uso pretendido? Qual campo de
-   horário será a referência oficial para indicar atualização?
-2. Quais navegadores e versões serão suportados?
-3. Quais dados serão coletados por hospedagem ou ferramentas de análise, para
-   quais finalidades, por quanto tempo e em quais regiões serão armazenados?
-   Quem será responsável por monitoramento e resposta a incidentes?
-4. As metas propostas de desempenho, disponibilidade e largura mínima de
-   320 px foram aprovadas? Quais condições, responsáveis e exclusões serão
-   usadas na medição?
+1. Antes da implementação, verificar se a cobertura mundial oferecida pela
+   Open-Meteo atende ao uso pretendido e validar licença, atribuição, limites e
+   disponibilidade; manter a fonte ou reabrir a decisão se a validação falhar.
+2. Confirmar na documentação da fonte a semântica do horário de referência das
+   condições atuais e se há horário confiável de geração/atualização da
+   previsão. Se este último não existir, não exibir rótulo de atualização para
+   a previsão.
+3. Antes da publicação, identificar o provedor de hospedagem, região e prazo
+   de retenção de seus logs técnicos mínimos e documentar essas informações,
+   além do responsável por incidentes.
+4. Ao medir as metas aprovadas, registrar ambiente, rede, população, amostras,
+   método e exclusões; disponibilidade deve distinguir carregamento da
+   aplicação de respostas utilizáveis da fonte externa.
 
 ### Decisões para versões futuras
 
