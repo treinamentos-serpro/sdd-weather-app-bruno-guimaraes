@@ -279,6 +279,20 @@ requisito funcional sem tarefa correspondente.
 
 ## Entrega 4 — Hook
 
+O recorte implementado em `src/hooks/useWeather.ts` expõe `status`
+(`idle | loading | success | error | empty`), `data`, `cities`, `error` (mensagem
+ou `null`), `query` e as ações assíncronas `search(name)`, `selectCity(city)` e
+`retry()`. A busca remove espaços externos, preserva a ordem das cidades e
+consulta automaticamente a previsão da primeira opção. Entrada em branco
+retorna a `idle` com orientação de validação, sem chamar serviços; ausência de
+cidades retorna `empty`. Cada operação limpa dados e erros anteriores; seleção
+preserva a consulta e as opções. Retry repete a última etapa com os mesmos
+parâmetros (somente previsão quando o geocoding já terminou) e não duplica uma
+operação em andamento. Respostas obsoletas e posteriores à desmontagem são
+descartadas. Os testes estão em `tests/unit/useWeather.test.ts`. A integração
+com a página, os estados independentes e a unidade permanecem fora deste
+recorte; a demonstração com mocks não foi alterada.
+
 ### T-19 — Orquestrar busca, seleção, previsão e retry
 
 - **Descrição:** Implementar o hook que coordena consulta, seleção da cidade,
