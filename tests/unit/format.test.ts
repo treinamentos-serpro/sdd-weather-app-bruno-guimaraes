@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getDayLabel, getShortDate } from '../../src/lib/format';
+import { formatMeasurement, getDayLabel, getShortDate, UNAVAILABLE } from '../../src/lib/format';
 
 describe('Formatação do calendário local', () => {
   it('rotula hoje e amanhã pelo índice, não pelo relógio do dispositivo', () => {
@@ -56,5 +56,29 @@ describe('Formatação do calendário local', () => {
   ])('comunica a data inválida %s sem normalizá-la para outro dia', (date) => {
     expect(getDayLabel(date, 0)).toBe('Indisponível');
     expect(getShortDate(date)).toBe('Indisponível');
+  });
+});
+
+describe('formatMeasurement', () => {
+  it('formata em pt-BR com até uma casa decimal e preserva zero válido', () => {
+    expect(formatMeasurement(1013.25, 'hPa')).toBe('1.013,3 hPa');
+    expect(formatMeasurement(0, 'mm', { min: 0 })).toBe('0 mm');
+  });
+
+  it.each([-0, -0.04])('nunca exibe zero negativo (%s)', (value) => {
+    expect(formatMeasurement(value, 'km/h')).toBe('0 km/h');
+  });
+
+  it.each([
+    null,
+    undefined,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    '12' as unknown as number,
+    -1,
+    101,
+  ])('usa o fallback para valor ausente, não finito ou fora do intervalo: %s', (value) => {
+    expect(formatMeasurement(value, '%', { min: 0, max: 100 })).toBe(UNAVAILABLE);
   });
 });

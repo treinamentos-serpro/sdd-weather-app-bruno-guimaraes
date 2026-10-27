@@ -411,6 +411,27 @@ describe('searchCities', () => {
       ]);
     });
 
+    it('normaliza -0.0 da Open-Meteo para 0 em todos os campos numéricos', async () => {
+      const body = forecastResponse();
+      mockResponse({
+        ...body,
+        current: { ...body.current, temperature_2m: -0, precipitation: -0, wind_speed_10m: -0 },
+        daily: {
+          ...body.daily,
+          temperature_2m_min: [-0, ...body.daily.temperature_2m_min.slice(1)],
+          precipitation_probability_max: [-0, ...body.daily.precipitation_probability_max.slice(1)],
+        },
+      });
+
+      const { current, forecast } = await getWeather(city);
+
+      expect(Object.is(current.temperatureCelsius, 0)).toBe(true);
+      expect(Object.is(current.precipitationMm, 0)).toBe(true);
+      expect(Object.is(current.windSpeedKmh, 0)).toBe(true);
+      expect(Object.is(forecast[0].minimumCelsius, 0)).toBe(true);
+      expect(Object.is(forecast[0].precipitationProbabilityPercent, 0)).toBe(true);
+    });
+
     it('mantém precipitação null como null (Indisponível) e preserva zeros válidos', async () => {
       mockResponse({
         ...forecastResponse(),

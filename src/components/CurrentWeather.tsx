@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { formatMeasurement, UNAVAILABLE } from '../lib/format';
 import { formatTemperature } from '../lib/temperature';
 import { getWeatherCondition } from '../lib/weatherCodes';
 import type { City, CurrentWeather as CurrentWeatherData, Unit } from '../types/weather';
@@ -9,19 +10,23 @@ interface CurrentWeatherProps {
   unit: Unit;
 }
 
-const metricFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
-
 export default function CurrentWeather({ city, current, unit }: CurrentWeatherProps) {
   const headingId = useId();
   const condition = getWeatherCondition(current.weatherCode);
   const temperature = formatTemperature(current.temperatureCelsius, unit);
-  const description = current.descriptionPtBr?.trim() || condition?.description || 'Indisponível';
+  const description = current.descriptionPtBr?.trim() || condition?.description || UNAVAILABLE;
   const location = [city.region, city.country].filter(Boolean).join(', ');
   const metrics = [
-    { label: 'Umidade', value: current.humidityPercent, suffix: '%', min: 0, max: 100 },
-    { label: 'Vento', value: current.windSpeedKmh, suffix: 'km/h', min: 0 },
-    { label: 'Precipitação', value: current.precipitationMm, suffix: 'mm', min: 0 },
-    { label: 'Pressão', value: current.pressureHpa, suffix: 'hPa', min: Number.MIN_VALUE },
+    {
+      label: 'Umidade',
+      value: formatMeasurement(current.humidityPercent, '%', { min: 0, max: 100 }),
+    },
+    { label: 'Vento', value: formatMeasurement(current.windSpeedKmh, 'km/h', { min: 0 }) },
+    { label: 'Precipitação', value: formatMeasurement(current.precipitationMm, 'mm', { min: 0 }) },
+    {
+      label: 'Pressão',
+      value: formatMeasurement(current.pressureHpa, 'hPa', { min: Number.MIN_VALUE }),
+    },
   ];
 
   return (
@@ -53,22 +58,12 @@ export default function CurrentWeather({ city, current, unit }: CurrentWeatherPr
       </div>
 
       <dl className="grid grid-cols-2 gap-4 border-t border-white/10 pt-6 sm:grid-cols-4">
-        {metrics.map(({ label, value, suffix, min, max }) => {
-          const valid =
-            value != null &&
-            Number.isFinite(value) &&
-            value >= min &&
-            (max === undefined || value <= max);
-
-          return (
-            <div key={label} className="min-w-0">
-              <dt className="text-sm text-white/70">{label}</dt>
-              <dd className="mt-1 break-words text-lg font-semibold">
-                {valid ? `${metricFormatter.format(value)} ${suffix}` : 'Indisponível'}
-              </dd>
-            </div>
-          );
-        })}
+        {metrics.map(({ label, value }) => (
+          <div key={label} className="min-w-0">
+            <dt className="text-sm text-white/70">{label}</dt>
+            <dd className="mt-1 break-words text-lg font-semibold">{value}</dd>
+          </div>
+        ))}
       </dl>
     </section>
   );

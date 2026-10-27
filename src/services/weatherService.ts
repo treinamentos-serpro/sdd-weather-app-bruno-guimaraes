@@ -180,8 +180,10 @@ export async function searchCities(name: string): Promise<City[]> {
   return data.results.map(toCity);
 }
 
+// `-0.0` é um valor JSON válido da Open-Meteo; normaliza para 0 para não exibir "-0".
 function toFiniteNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return value === 0 ? 0 : value;
 }
 
 function toMetricNumber(

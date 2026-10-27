@@ -120,4 +120,31 @@ describe('CurrentWeather', () => {
     );
     expectMetric('Umidade', '100 %');
   });
+
+  it('não exibe NaN, undefined, null nem zero negativo para valores corrompidos', () => {
+    const corrupted = {
+      temperatureCelsius: Number.NaN,
+      weatherCode: undefined,
+      descriptionPtBr: '   ',
+      sourceLocalTime: null,
+      humidityPercent: Number.POSITIVE_INFINITY,
+      windSpeedKmh: -0,
+      precipitationMm: -0,
+      pressureHpa: undefined,
+    } as unknown as CurrentWeatherData;
+    const { container } = render(
+      <CurrentWeather
+        city={{ ...city, region: null, country: null }}
+        current={corrupted}
+        unit="celsius"
+      />,
+    );
+
+    expect(container).not.toHaveTextContent(/NaN|undefined|null|-0\b|Infinity/);
+    expect(screen.getByLabelText('Temperatura: Indisponível')).toBeVisible();
+    expectMetric('Umidade', 'Indisponível');
+    expectMetric('Vento', '0 km/h');
+    expectMetric('Precipitação', '0 mm');
+    expectMetric('Pressão', 'Indisponível');
+  });
 });

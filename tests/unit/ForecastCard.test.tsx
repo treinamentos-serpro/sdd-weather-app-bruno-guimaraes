@@ -113,4 +113,21 @@ describe('ForecastCard', () => {
     expect(screen.getByText('Data indisponível')).toBeVisible();
     expect(screen.queryByText('Hoje')).not.toBeInTheDocument();
   });
+
+  it('não exibe NaN, undefined, null nem zero negativo para valores corrompidos', () => {
+    const corrupted = {
+      localDate: 'invalid',
+      minimumCelsius: Number.NaN,
+      maximumCelsius: -0,
+      weatherCode: undefined,
+      descriptionPtBr: undefined,
+      precipitationProbabilityPercent: -0,
+    } as unknown as ForecastDay;
+    const { container } = render(<ForecastCard day={corrupted} index={0} unit="fahrenheit" />);
+
+    expect(container).not.toHaveTextContent(/NaN|undefined|null|-0\b|Infinity/);
+    expectMetric('Máxima', '32 °F');
+    expectMetric('Mínima', 'Indisponível');
+    expectMetric('Probabilidade de chuva', '0 %');
+  });
 });

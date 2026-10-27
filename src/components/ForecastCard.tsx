@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { getDayLabel, getShortDate } from '../lib/format';
+import { formatMeasurement, getDayLabel, getShortDate, UNAVAILABLE } from '../lib/format';
 import { formatTemperature } from '../lib/temperature';
 import { getWeatherCondition } from '../lib/weatherCodes';
 import type { ForecastDay, Unit } from '../types/weather';
@@ -10,18 +10,12 @@ interface ForecastCardProps {
   unit: Unit;
 }
 
-const probabilityFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
-
 export default function ForecastCard({ day, index, unit }: ForecastCardProps) {
   const headingId = useId();
   const condition = getWeatherCondition(day.weatherCode);
-  const description = day.descriptionPtBr?.trim() || condition?.description || 'Indisponível';
+  const description = day.descriptionPtBr?.trim() || condition?.description || UNAVAILABLE;
   const shortDate = getShortDate(day.localDate);
-  const probability = day.precipitationProbabilityPercent;
-  const rain =
-    probability != null && Number.isFinite(probability) && probability >= 0 && probability <= 100
-      ? `${probabilityFormatter.format(probability)} %`
-      : 'Indisponível';
+  const rain = formatMeasurement(day.precipitationProbabilityPercent, '%', { min: 0, max: 100 });
 
   return (
     <article
@@ -32,7 +26,7 @@ export default function ForecastCard({ day, index, unit }: ForecastCardProps) {
         {getDayLabel(day.localDate, index)}
       </h3>
       <p className="mt-1 text-sm text-white/70">
-        {shortDate === 'Indisponível' ? (
+        {shortDate === UNAVAILABLE ? (
           'Data indisponível'
         ) : (
           <time dateTime={day.localDate}>{shortDate}</time>
