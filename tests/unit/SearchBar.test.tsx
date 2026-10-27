@@ -76,6 +76,28 @@ describe('SearchBar', () => {
     expect(onSearch).toHaveBeenCalledExactlyOnceWith('Recife');
   });
 
+  it('não dispara onSearch quando o input está vazio', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(<SearchBar onSearch={onSearch} />);
+
+    expect(screen.getByLabelText('Cidade')).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Buscar' }));
+
+    expect(onSearch).not.toHaveBeenCalled();
+  });
+
+  it('dispara onSearch com o termo digitado', async () => {
+    const user = userEvent.setup();
+    const onSearch = vi.fn();
+    render(<SearchBar onSearch={onSearch} />);
+
+    await user.type(screen.getByLabelText('Cidade'), 'Lisboa');
+    await user.click(screen.getByRole('button', { name: 'Buscar' }));
+
+    expect(onSearch).toHaveBeenCalledExactlyOnceWith('Lisboa');
+  });
+
   it('associa cada label ao seu próprio campo quando há mais de uma barra', () => {
     render(
       <>
