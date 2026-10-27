@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import CurrentWeather from './components/CurrentWeather';
 import ForecastList from './components/ForecastList';
 import SearchBar from './components/SearchBar';
@@ -12,6 +12,28 @@ import type { Unit } from './types/weather';
 export default function App() {
   const { status, data, error, search, retry } = useWeather();
   const [unit, setUnit] = useState<Unit>('celsius');
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Busca e retry desabilitam/desmontam o controle focado; o foco vai para o main
+  // para não se perder no body.
+  function handleSearch(city: string) {
+    search(city);
+    mainRef.current?.focus();
+  }
+
+  function handleRetry() {
+    retry();
+    mainRef.current?.focus();
+  }
+
+  const announcement =
+    status === 'loading'
+      ? 'Carregando dados meteorológicos...'
+      : status === 'success' && data
+        ? `Clima de ${data.city.name} carregado.`
+        : status === 'empty'
+          ? 'Nenhuma cidade encontrada.'
+          : '';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-night-900 via-night-800 to-night-900 font-sans text-white">
@@ -34,13 +56,19 @@ export default function App() {
               WeatherView
             </h1>
           </div>
-          <SearchBar onSearch={search} disabled={status === 'loading'} />
+          <SearchBar onSearch={handleSearch} disabled={status === 'loading'} />
           <div className="justify-self-start lg:justify-self-end">
             <UnitToggle unit={unit} onChange={setUnit} />
           </div>
         </header>
 
+        {/* Região viva persistente fora do main: aria-busy no main não a silencia. */}
+        <p role="status" className="sr-only">
+          {announcement}
+        </p>
+
         <main
+          ref={mainRef}
           id="main-content"
           tabIndex={-1}
           aria-label="Condições meteorológicas"
@@ -63,7 +91,7 @@ export default function App() {
           {status === 'error' && (
             <ErrorState
               message={error ?? 'Não foi possível obter os dados meteorológicos.'}
-              onRetry={retry}
+              onRetry={handleRetry}
             />
           )}
           {status === 'success' && data && (

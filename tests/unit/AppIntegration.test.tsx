@@ -108,6 +108,46 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it('move o foco para o conteúdo principal ao buscar e anuncia loading e sucesso', async () => {
+    stubFetch([]);
+    const user = userEvent.setup();
+    render(<App />);
+    const main = screen.getByRole('main');
+    const announcer = screen.getByRole('status');
+
+    expect(announcer).not.toHaveTextContent(/./);
+    expect(main).not.toContainElement(announcer);
+
+    await searchSaoPaulo(user);
+
+    expect(main).toHaveFocus();
+    expect(await screen.findByRole('heading', { name: 'São Paulo' })).toBeVisible();
+    expect(announcer).toHaveTextContent('Clima de São Paulo carregado.');
+  });
+
+  it('anuncia o loading na região viva fora do main ocupado', async () => {
+    stubFetch(['hang']);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await searchSaoPaulo(user);
+
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('status')).toHaveTextContent('Carregando dados meteorológicos...');
+  });
+
+  it('mantém o foco no conteúdo principal ao tentar novamente', async () => {
+    stubFetch(['network-error']);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await searchSaoPaulo(user);
+    await user.click(await screen.findByRole('button', { name: 'Tentar novamente' }));
+
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(await screen.findByRole('heading', { name: 'São Paulo' })).toBeVisible();
+  });
+
   it('mantém erro e retry disponíveis quando a nova tentativa também falha', async () => {
     stubFetch(['network-error', { body: {}, status: 503 }]);
     const user = userEvent.setup();

@@ -53,7 +53,7 @@ export default function SearchBar({ onSearch, disabled = false }: SearchBarProps
           aria-describedby={showError ? errorId : undefined}
           placeholder="Digite o nome de uma cidade"
           className={`min-w-0 flex-1 rounded-xl border bg-night-900 px-4 py-3 text-white placeholder:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 disabled:cursor-not-allowed disabled:opacity-50 ${
-            showError ? 'border-rose-300' : 'border-white/10'
+            showError ? 'border-rose-300' : 'border-white/40'
           }`}
         />
         <button

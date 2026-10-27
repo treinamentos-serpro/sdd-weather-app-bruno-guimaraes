@@ -87,7 +87,8 @@ test.describe('Weather App — cidade não encontrada', () => {
     await page.getByRole('searchbox', { name: 'Cidade' }).fill('Cidadeinexistente');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
 
-    await expect(page.getByText('Nenhuma cidade encontrada')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Nenhuma cidade encontrada' })).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText('Nenhuma cidade encontrada.');
     await expect(page.getByRole('region', { name: 'Previsão de 5 dias' })).toHaveCount(0);
     expect(forecastRequested).toBe(false);
   });

@@ -799,6 +799,28 @@ de UI no App. Os estados independentes permanecem fora deste recorte do hook.
 - **Tipo:** Test.
 - **Rastreabilidade:** NFR-05, NFR-05.1.
 
+### T-44 — Corrigir violações da auditoria de acessibilidade
+
+- **Descrição:** Corrigir as violações encontradas nas auditorias de busca,
+  resultados e unidade.
+- **Critérios de aceite:**
+  - Ao enviar uma busca ou acionar “Tentar novamente”, o foco vai para o
+    conteúdo principal em vez de se perder no `body` (WCAG 2.4.3).
+  - Loading, sucesso e “nenhuma cidade” são anunciados por uma região
+    `role="status"` persistente fora do `main` com `aria-busy`; erros continuam
+    com `role="alert"` (WCAG 4.1.3).
+  - A borda do campo de busca tem contraste mínimo de 3:1 (WCAG 1.4.11).
+  - As duas opções de unidade são alcançáveis por Tab; setas continuam
+    alternando a unidade; o foco da opção selecionada tem anel com offset.
+  - A lista da previsão mantém a semântica de lista (`role="list"`).
+- **Dependências:** T-32, T-33.
+- **Arquivos prováveis:** `src/App.tsx`, `src/components/SearchBar.tsx`,
+  `src/components/UnitToggle.tsx`, `src/components/ForecastList.tsx`,
+  `src/components/states/LoadingState.tsx`,
+  `src/components/states/EmptyState.tsx`.
+- **Tipo:** Code.
+- **Rastreabilidade:** NFR-05, NFR-05.1.
+
 ### T-34 — Validar compatibilidade entre navegadores
 
 - **Descrição:** Executar aceite separado nas duas versões estáveis mais

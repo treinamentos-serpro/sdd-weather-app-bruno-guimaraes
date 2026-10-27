@@ -20,7 +20,9 @@ export default function ForecastList({ forecast, unit }: ForecastListProps) {
           Previsão indisponível.
         </p>
       ) : (
-        <ol className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        // role="list" preserva a semântica no WebKit/VoiceOver com list-style: none.
+        // biome-ignore lint/a11y/noRedundantRoles: necessário para VoiceOver no Safari
+        <ol role="list" className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {forecast.map((day, index) => (
             <li key={day.localDate} className="min-w-0">
               <ForecastCard day={day} index={index} unit={unit} />

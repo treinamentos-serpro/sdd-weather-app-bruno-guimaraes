@@ -8,11 +8,11 @@ import LoadingState from '../../src/components/states/LoadingState';
 afterEach(cleanup);
 
 describe('LoadingState', () => {
-  it('comunica o carregamento com role status', () => {
+  it('exibe o carregamento sem região viva própria (anúncio fica no App)', () => {
     render(<LoadingState />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Carregando...');
     expect(screen.getByText('Carregando...')).toBeVisible();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
 
@@ -80,9 +80,8 @@ describe('EmptyState', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Nenhuma cidade encontrada' })).toBeVisible();
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Confira o nome da cidade e faça uma nova busca.',
-    );
+    expect(screen.getByText('Confira o nome da cidade e faça uma nova busca.')).toBeVisible();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
   });

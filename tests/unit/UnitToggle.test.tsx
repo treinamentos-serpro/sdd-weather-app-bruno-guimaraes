@@ -14,9 +14,17 @@ describe('UnitToggle', () => {
     const fahrenheit = within(group).getByRole('button', { name: 'Graus Fahrenheit' });
 
     expect(celsius).toHaveAttribute('aria-pressed', 'true');
-    expect(celsius).toHaveAttribute('tabindex', '0');
     expect(fahrenheit).toHaveAttribute('aria-pressed', 'false');
-    expect(fahrenheit).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('permite alcançar as duas unidades com Tab', async () => {
+    const user = userEvent.setup();
+    render(<UnitToggle unit="celsius" onChange={vi.fn()} />);
+
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Graus Celsius' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Graus Fahrenheit' })).toHaveFocus();
   });
 
   it('notifica a nova unidade ao selecionar uma opção', async () => {
