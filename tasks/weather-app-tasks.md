@@ -14,6 +14,26 @@ tarefa aponta para os IDs pertinentes de requisitos, critérios de aceite ou
 requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 é identificada como habilitadora técnica e vinculada ao plano.
 
+## Matriz de rastreabilidade dos requisitos funcionais
+
+A tabela relaciona cada requisito funcional da especificação às tarefas que
+implementam seu comportamento e às tarefas que o verificam.
+
+| Requisito da spec | Tarefas de implementação | Tarefas de verificação |
+|---|---|---|
+| FR-01 — Buscar e selecionar uma cidade | T-04, T-05, T-15, T-19, T-21, T-26 | T-06, T-16, T-20, T-22, T-28, T-29, T-35 |
+| FR-02 — Consultar as condições atuais | T-04, T-07, T-09, T-13, T-17, T-23, T-26 | T-08, T-10, T-14, T-18, T-25, T-28, T-36 |
+| FR-03 — Consultar a previsão de cinco dias | T-04, T-07, T-09, T-13, T-17, T-23, T-26 | T-08, T-10, T-14, T-18, T-25, T-28, T-29, T-36 |
+| FR-04 — Alternar a unidade de temperatura | T-04, T-11, T-19, T-24, T-26 | T-12, T-20, T-25, T-28, T-30 |
+| FR-05 — Comunicar falhas e permitir recuperação | T-04, T-15, T-17, T-19, T-21, T-23, T-26 | T-16, T-18, T-20, T-22, T-25, T-29 |
+| FR-06 — Informar o estado da consulta | T-04, T-19, T-21, T-23, T-26 | T-20, T-22, T-25, T-28, T-29 |
+
+T-02 e T-03 são habilitadoras técnicas comuns do fluxo, e T-01 é a validação
+prévia da fonte externa e de sua atribuição. T-42 e T-43 validam,
+respectivamente, as suítes unitária/de componentes e E2E de forma transversal.
+Todas as tarefas FR-01 a FR-06 têm correspondência de implementação; não há
+requisito funcional sem tarefa correspondente.
+
 ## Entrega 1 — Tipos
 
 ### T-04 — Definir os contratos compartilhados de domínio
