@@ -100,6 +100,25 @@ Decisões-chave:
 - **Rede isolada** em `services/` — componentes e hooks não conhecem URLs.
 - Sempre tratar **loading**, **erro** e **vazio**.
 
+### Dados mock para desenvolver a UI
+
+Os contratos de domínio estão em [src/types/weather.ts](src/types/weather.ts).
+Para desenvolver componentes sem consultar a API, importe o objeto tipado de
+[src/mocks/weather.ts](src/mocks/weather.ts):
+
+```ts
+import { mockWeatherData } from './mocks/weather';
+
+const weather = mockWeatherData;
+```
+
+O exemplo considera um arquivo diretamente em `src/`; ajuste o caminho conforme
+o componente. O mock contém São Paulo, condições atuais e cinco dias consecutivos
+(27 a 31 de outubro de 2026), com temperaturas em Celsius, códigos WMO e
+descrições em pt-BR. As datas são fixas para manter o desenvolvimento e os
+testes determinísticos: não representam dados reais ou atualizados. A previsão
+começa na data de `current.sourceLocalTime`, não na data do dispositivo.
+
 ---
 
 ## Stack
