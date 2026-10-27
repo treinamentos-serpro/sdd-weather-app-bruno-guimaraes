@@ -72,3 +72,50 @@ test.describe('Weather App — fluxo de busca', () => {
     await expect(forecast.getByText('59 °F')).toBeVisible();
   });
 });
+
+test.describe('Weather App — cidade não encontrada', () => {
+  test('exibe "Nenhuma cidade encontrada" quando o geocoding retorna {}', async ({ page }) => {
+    let forecastRequested = false;
+    await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
+    await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
+      route.fulfill({ json: {} }),
+    );
+    await page.route('https://api.open-meteo.com/**', (route) => {
+      forecastRequested = true;
+      return route.fulfill({ json: forecastResponse });
+    });
+    await page.goto('/');
+
+    await page.getByRole('searchbox', { name: 'Cidade' }).fill('Cidadeinexistente');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+    await expect(page.getByText('Nenhuma cidade encontrada')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Previsão de 5 dias' })).toHaveCount(0);
+    expect(forecastRequested).toBe(false);
+  });
+});
+
+test.describe('Weather App — viewport mobile (375x812)', () => {
+  test.use({ viewport: { width: 375, height: 812 } });
+
+  test.beforeEach(async ({ page }) => {
+    await mockOpenMeteo(page);
+    await page.goto('/');
+  });
+
+  test('busca cidade e renderiza o clima corretamente', async ({ page }) => {
+    await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+    await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeVisible();
+    await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
+
+    const forecast = page.getByRole('region', { name: 'Previsão de 5 dias' });
+    await expect(forecast).toBeVisible();
+    await expect(forecast.getByRole('listitem')).toHaveCount(5);
+
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+  });
+});
