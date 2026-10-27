@@ -181,10 +181,83 @@ interface WeatherAppError {
 **Open-Meteo**, por HTTPS e sem chave fornecida pelo usuário, sujeito à
 validação prévia de cobertura, licença, atribuição, limites e disponibilidade.
 
-| Uso | Endpoint e parâmetros previstos |
-|---|---|
-| Geocoding | `https://geocoding-api.open-meteo.com/v1/search`; `name` com a consulta aparada, `count=10`, `language=pt`, `format=json`. Confirmar idioma/cobertura na documentação antes da implementação. |
-| Condições e previsão | `https://api.open-meteo.com/v1/forecast`; `latitude` e `longitude` da opção selecionada; `current=temperature_2m,weather_code`; `daily=weather_code,temperature_2m_max,temperature_2m_min`; `temperature_unit=celsius`; `timezone=auto`; `forecast_days=5`. |
+### Geocoding
+
+- **URL:** `https://geocoding-api.open-meteo.com/v1/search`
+- **Parâmetros:** `name` obrigatório, com a consulta aparada e codificada como
+  parâmetro URL; `count=10` limita a até dez opções; `language=pt` solicita
+  nomes traduzidos quando disponíveis; `format=json` explicita o formato JSON
+  (também é o padrão).
+- **Exemplo de chamada:**
+  `https://geocoding-api.open-meteo.com/v1/search?name=Lisboa&count=10&language=pt&format=json`
+- **Resposta resumida:**
+
+  ```json
+  {
+    "results": [
+      {
+        "id": 2267057,
+        "name": "Lisboa",
+        "latitude": 38.72509,
+        "longitude": -9.1498,
+        "country": "Portugal",
+        "admin1": "Distrito de Lisboa"
+      }
+    ]
+  }
+  ```
+
+- **Mapeamento:** cada item de `results`, mantendo a ordem recebida, origina
+  uma opção `City`: `id` → `id`, `name` → `name`, `country` → `country`,
+  `admin1` → `region`, `latitude` → `latitude` e `longitude` → `longitude`.
+  Campo opcional ausente ou inválido vira `null` quando o tipo permite; nome ou
+  coordenadas sem valor válido tornam a resposta estruturalmente inválida.
+  Lista `results` vazia é resultado vazio, não erro.
+
+### Forecast
+
+- **URL:** `https://api.open-meteo.com/v1/forecast`
+- **Parâmetros:** `latitude` e `longitude` da `City` selecionada; `current` e
+  `daily` selecionam explicitamente as variáveis abaixo; `temperature_unit=celsius`
+  fixa a unidade recebida; `timezone=auto` determina o fuso local pelas
+  coordenadas; `forecast_days=5` solicita hoje e os quatro dias seguintes.
+- **Exemplo de chamada:**
+  `https://api.open-meteo.com/v1/forecast?latitude=38.72509&longitude=-9.1498&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=celsius&timezone=auto&forecast_days=5`
+- **Resposta resumida** (os arrays diários correspondem por índice):
+
+  ```json
+  {
+    "utc_offset_seconds": 0,
+    "timezone": "Europe/Lisbon",
+    "current": {
+      "time": "2026-10-27T17:15",
+      "temperature_2m": 20.8,
+      "weather_code": 2
+    },
+    "daily": {
+      "time": ["2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31"],
+      "weather_code": [3, 1, 0, 0, 0],
+      "temperature_2m_max": [23.5, 24.6, 25.7, 26.9, 26.4],
+      "temperature_2m_min": [12.0, 12.8, 11.9, 13.7, 14.2]
+    }
+  }
+  ```
+
+- **Mapeamento para `WeatherData`:** a `City` associada é a opção escolhida,
+  não uma cidade reconstruída a partir da resposta de forecast. `current.time`
+  → `current.sourceLocalTime`; `current.temperature_2m` →
+  `current.temperatureCelsius`; `current.weather_code` →
+  `current.weatherCode`; `timezone` → `timeZone`; `utc_offset_seconds` →
+  `utcOffsetSeconds`. Para cada índice `i` de `daily.time`, criar um
+  `ForecastDay`: `time[i]` → `localDate`, `temperature_2m_min[i]` →
+  `minimumCelsius`, `temperature_2m_max[i]` → `maximumCelsius` e
+  `weather_code[i]` → `weatherCode`. Os valores numéricos devem ser validados;
+  campo ausente ou inválido vira `null`, sem deslocar os demais índices.
+  `descriptionPtBr` em `CurrentWeather` e `ForecastDay` é derivada do código
+  WMO pela tabela da aplicação; não é um campo deste payload.
+
+Referências oficiais: [Forecast API](https://open-meteo.com/en/docs) e
+[Geocoding API](https://open-meteo.com/en/docs/geocoding-api).
 
 - Solicitações devem codificar corretamente acentos, espaços internos e
   pontuação. Preservar a ordem dos resultados de geocoding.
