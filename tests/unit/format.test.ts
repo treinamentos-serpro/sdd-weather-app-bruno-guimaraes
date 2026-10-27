@@ -9,6 +9,35 @@ describe('Formatação do calendário local', () => {
   });
 
   it.each([
+    ['2026-11-01', 0],
+    ['2030-06-15', 0],
+    ['2026-11-01', 1],
+    ['2030-06-15', 1],
+  ])('usa o índice para rotular %s (índice %s) independentemente do dia da semana', (date, index) => {
+    expect(getDayLabel(date, index)).toBe(index === 0 ? 'Hoje' : 'Amanhã');
+  });
+
+  it.each([
+    ['2026-11-01', 2, 'domingo'],
+    ['2026-11-02', 3, 'segunda-feira'],
+    ['2026-11-03', 4, 'terça-feira'],
+    ['2026-11-04', 5, 'quarta-feira'],
+    ['2026-11-05', 6, 'quinta-feira'],
+    ['2026-11-06', 2, 'sexta-feira'],
+    ['2026-11-07', 3, 'sábado'],
+  ])('rotula %s (índice %s) com o dia da semana %s', (date, index, weekday) => {
+    expect(getDayLabel(date, index)).toBe(weekday);
+  });
+
+  it.each([
+    ['2026-10-27', '27/10'],
+    ['2026-01-05', '05/01'],
+    ['2026-09-09', '09/09'],
+  ])('formata %s como data curta dd/MM (%s)', (date, shortDate) => {
+    expect(getShortDate(date)).toBe(shortDate);
+  });
+
+  it.each([
     ['2026-12-31', 'quinta-feira', '31/12'],
     ['2027-01-01', 'sexta-feira', '01/01'],
     ['2028-02-29', 'terça-feira', '29/02'],

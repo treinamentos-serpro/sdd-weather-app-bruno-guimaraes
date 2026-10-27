@@ -20,6 +20,12 @@ describe('weatherCodes', () => {
     expect(getWeatherCondition(95)).toEqual({ description: 'Trovoada', icon: '⛈️' });
   });
 
+  it.each([
+    4, 50, 60, 100,
+  ])('retorna null para o código fora da tabela WMO %s em vez de aproximar ao vizinho', (code) => {
+    expect(getWeatherCondition(code)).toBeNull();
+  });
+
   it.each([null, -1, 999, 1.5, NaN, Infinity])('não infere condição para %s', (code) => {
     expect(getWeatherCondition(code)).toBeNull();
   });
