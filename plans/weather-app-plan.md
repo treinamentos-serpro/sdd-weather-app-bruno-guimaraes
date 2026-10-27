@@ -187,7 +187,7 @@ type RetryRequest =
   | { operation: "weather"; city: City };
 
 interface WeatherAppError {
-  kind: "network" | "http" | "timeout" | "invalid-response";
+  kind: "network" | "api" | "http" | "timeout" | "invalid-response";
   retryRequest: RetryRequest;
   messagePtBr: string;
 }
@@ -319,8 +319,11 @@ Referências oficiais: [Forecast API](https://open-meteo.com/en/docs) e
 
 ## State Management
 
-Usar estado React local na página/hook que coordena o fluxo; não há necessidade
-de Redux, Context global ou armazenamento persistente.
+Manter o estado efêmero no hook `useWeatherSearch`, consumido pela página e
+pelos componentes de apresentação. Não há necessidade de Redux, Context
+global ou armazenamento persistente. O campo de busca, a cidade selecionada,
+os estados independentes de busca e previsão e a unidade escolhida vivem
+juntos nesse estado local. A unidade inicia em Celsius e não é persistida.
 
 ```ts
 type OperationState<T> =
@@ -339,31 +342,48 @@ interface WeatherPageState {
 }
 ```
 
-`empty` deve ser tratado como estado terminal válido apenas para busca.
+As transições são explícitas: cada operação começa em `idle`, passa a `loading`
+quando enviada e termina em `success` ou `error`; busca bem-sucedida sem
+correspondências termina em `empty`. `empty` é um resultado válido somente
+para geocoding, nunca uma falha ou um estado meteorológico sem dados.
 Operações de busca e previsão têm estados independentes. Ao mudar cidade,
-associar imediatamente a consulta ao novo alvo e não renderizar o resultado
-anterior sob o nome novo. Uma resposta assíncrona só pode atualizar o estado se
-seu `requestId` ainda for o atual para aquela operação.
+associar imediatamente a previsão ao novo alvo e não renderizar os dados da
+cidade anterior sob o nome novo. Uma resposta assíncrona só pode atualizar o
+estado se seu `requestId` ainda for o atual para aquela operação.
+
+Armazenar todas as temperaturas normalizadas em Celsius, sem substituir ou
+mutar esses valores quando a unidade mudar. A renderização deriva o valor
+exibido a partir da temperatura canônica e de `unit`: em Fahrenheit, aplicar
+`°F = °C × 9/5 + 32`; em Celsius, usar o valor de origem. Arredondar para o
+inteiro mais próximo, com empates para longe de zero, apenas no formatador de
+apresentação. A alternância atualiza somente `unit` e a tela; não chama
+serviços, não faz novo request e não converte repetidamente valores já
+arredondados.
 
 ## Error Handling
 
 - Validar antes de enviar: consulta vazia/composta por espaços gera mensagem
   acessível e nenhuma chamada.
-- Normalizar erros de rede, HTTP, timeout e payload para uma categoria interna
-  simples (`network`, `http`, `timeout`, `invalid-response`); apresentar
-  mensagem pt-BR clara sem expor detalhes técnicos.
-- Timeout de 10 segundos encerra carregamento e oferece nova tentativa. Retry
-  é somente por ação do usuário, repete os mesmos parâmetros e mantém a ação
-  disponível se falhar novamente.
+- Normalizar falhas em erros tipados recuperáveis: `network` para falha de
+  transporte/conexão; `timeout` quando o limite de 10 segundos expirar; `http`
+  para resposta não-2xx sem erro de domínio interpretável; `api` para erro
+  declarado pela Open-Meteo no payload; e `invalid-response` para JSON mal
+  formado ou incompatível com o contrato esperado. A mensagem pt-BR deve
+  informar que os dados não puderam ser obtidos, sem expor detalhes técnicos.
+- Timeout de 10 segundos encerra o carregamento e oferece nova tentativa.
+  Retry ocorre somente por ação do usuário, repete os mesmos parâmetros e
+  mantém a ação disponível se falhar novamente. Uma falha deve sempre encerrar
+  `loading` em `error`; nunca converter timeout ou falha da API em resultado
+  vazio.
 - Erros de busca não correspondem a resultados vazios. Geocoding válido sem
   correspondências apresenta estado vazio e permite outra busca.
 - Campos ausentes, nulos, não numéricos ou não finitos são normalizados como
   indisponíveis. Se a resposta meteorológica não puder ser interpretada ou não
   houver nenhum campo meteorológico utilizável entre condições atuais e dias
-  previstos, tratar como falha recuperável.
-- Uma resposta parcialmente utilizável apresenta os campos válidos e indica
-  cada campo/dia ausente; não completar dados, datas ou descrições por
-  inferência.
+  previstos, tratar como `invalid-response` recuperável. Uma resposta
+  parcialmente utilizável, com ao menos um campo meteorológico válido, é
+  `success`: apresentar os campos válidos e indicar cada campo/dia ausente,
+  sem completar dados, datas ou descrições por inferência.
 - Estados de carregamento, vazio, sucesso e erro devem ter comunicação
   perceptível e acessível (incluindo leitores de tela); falha não deixa
   carregamento ativo.
@@ -392,7 +412,9 @@ seu `requestId` ainda for o atual para aquela operação.
   acessível: busca por botão/Enter, validação vazia, seleção por teclado,
   contexto geográfico/coordenadas, alternância de unidade, indicação de
   indisponibilidade e apresentação de carregamento, vazio, erro e retry. Não
-  testar detalhes internos de implementação nem chamadas reais à API.
+  testar detalhes internos de implementação nem chamadas reais à API;
+  confirmar que alternar unidade atualiza os valores exibidos sem iniciar
+  outra requisição.
 - **Concorrência:** controlar respostas de teste para comprovar que buscas
   anteriores e consultas da cidade anterior não substituem a operação mais
   recente; garantir que resultado e identificação de cidade permaneçam
