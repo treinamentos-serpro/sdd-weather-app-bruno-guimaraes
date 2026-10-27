@@ -146,6 +146,21 @@ com a API continuam na composição de resultados e nas tarefas correspondentes.
 
 ## Data Model
 
+`ForecastList` recebe `forecast: ForecastDay[]` e `unit: Unit` e renderiza uma
+seção “Previsão de 5 dias” com lista ordenada no grid
+`grid-cols-2 sm:grid-cols-3 lg:grid-cols-5`. Cada `ForecastCard` recebe `day`,
+`index` e `unit`. `lib/format` fornece `getDayLabel(localDate, index)` e
+`getShortDate(localDate)`, validando datas YYYY-MM-DD e formatando componentes
+UTC em pt-BR sem depender do relógio ou fuso do dispositivo. Os índices 0 e 1
+representam hoje e amanhã conforme o contrato de ordenação da fonte.
+Temperaturas e condições reutilizam `lib/temperature` e `lib/weatherCodes`.
+`precipitationProbabilityPercent?: number | null` preserva consumidores
+existentes; somente valores finitos entre 0 e 100 são exibidos como percentuais.
+Campos inválidos ficam explicitamente indisponíveis. Lista vazia comunica
+“Previsão indisponível”; os cinco dias e o preenchimento de lacunas continuam
+sendo responsabilidade da normalização em T-13. Loading/erro de rede ficam
+na composição de resultados.
+
 Contratos de domínio normalizados, separados dos payloads da Open-Meteo e com
 nomes em camelCase. `null` representa campo ausente ou inválido na resposta;
 esses valores são mostrados como indisponíveis e nunca formatados como
@@ -180,6 +195,7 @@ export interface ForecastDay {
   maximumCelsius: number | null; // Máxima diária (temperature_2m_max), em °C.
   weatherCode: number | null; // Código WMO diário (daily.weather_code).
   descriptionPtBr: string | null; // Descrição derivada do código WMO em pt-BR.
+  precipitationProbabilityPercent?: number | null; // Probabilidade de chuva em %.
 }
 
 export interface WeatherData {

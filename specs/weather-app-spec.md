@@ -67,6 +67,14 @@ condição. Campos ou datas sem dados ou inválidos devem permanecer identificad
 como indisponíveis; a interface não deve calcular valores ausentes nem
 apresentar dados de outra data.
 
+Os cards usam um grid de 2 colunas em telas pequenas, 3 a partir de `sm` e 5
+a partir de `lg`. Cada card apresenta rótulo (“Hoje”, “Amanhã” ou dia da
+semana), data, ícone WMO, descrição, máxima/mínima na unidade selecionada e
+probabilidade de chuva (%). A probabilidade aceita valores de 0 a 100;
+ausência ou valor inválido aparece como “Indisponível”, sem inferir zero.
+Nesta entrega os componentes recebem props; rede e normalização permanecem
+fora da apresentação.
+
 ### FR-04 — Alternar a unidade de temperatura
 
 O sistema deve permitir alternar entre Celsius e Fahrenheit e atualizar as

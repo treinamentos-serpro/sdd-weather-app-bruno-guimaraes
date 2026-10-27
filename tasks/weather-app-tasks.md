@@ -310,6 +310,13 @@ requisito funcional sem tarefa correspondente.
 
 ### T-23 — Criar a interface de condições atuais e previsão
 
+- **Recorte da previsão:** Implementar `ForecastList` e `ForecastCard` com grid
+  2/3/5 colunas, rótulos e datas por `lib/format`, ícone/descrição WMO,
+  máxima/mínima na unidade selecionada e probabilidade de chuva opcional em
+  `ForecastDay`. Validar conversão sem mutação, calendário local independente
+  do dispositivo, campos ausentes/inválidos, limites de probabilidade e lista
+  vazia. Atualizar o mock com probabilidades ilustrativas. Rede, normalização,
+  atualidade e atribuição continuam pendentes na composição de resultados.
 - **Recorte do hero:** Implementar `src/components/CurrentWeather.tsx` com
   `city`, `current` e `unit`, temperatura em destaque, ícone WMO, condição e
   métricas opcionais (umidade, vento, precipitação e pressão). Criar os

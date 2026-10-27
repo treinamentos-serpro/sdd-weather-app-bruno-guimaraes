@@ -26,6 +26,7 @@ export interface ForecastDay {
   maximumCelsius: number | null;
   weatherCode: number | null;
   descriptionPtBr: string | null;
+  precipitationProbabilityPercent?: number | null;
 }
 
 export interface WeatherData {
