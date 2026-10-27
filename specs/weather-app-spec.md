@@ -387,6 +387,22 @@ devem ser registrados com o ambiente, método, período e exclusões especificad
   versão não há GPS, contas, histórico nem persistência local ou no servidor
   de consultas ou preferências.
 
+## Matriz de rastreabilidade
+
+Cada User Story está ligada aos critérios que a verificam e aos requisitos
+não-funcionais que afetam sua implementação ou aceite. Os IDs referenciam as
+seções acima; critérios compartilhados aparecem em mais de uma linha quando
+atendem a mais de uma história.
+
+| User Story | Critérios de aceite relacionados | Requisitos não-funcionais relevantes |
+|---|---|---|
+| **US-01 — Busca e seleção de cidade** | AC-01.1, AC-01.2, AC-01.2a, AC-01.3, AC-01.4, AC-01.5, AC-01.6, AC-01.7; AC-05.2, AC-05.3, AC-05.4, AC-05.5; AC-06.1, AC-06.3, AC-06.4 | NFR-01 (responsividade), NFR-02 (usabilidade), NFR-03 (desempenho), NFR-04 (disponibilidade), NFR-05 e NFR-05.1 (acessibilidade e verificação), NFR-06 (compatibilidade), NFR-08 (privacidade e segurança) |
+| **US-02 — Condições atuais** | AC-02.1, AC-02.2, AC-02.3, AC-02.4, AC-02.5, AC-02.6; AC-04.2; AC-05.1, AC-05.3, AC-05.4, AC-05.5, AC-05.6; AC-06.1, AC-06.2, AC-06.4, AC-06.5 | NFR-01 (responsividade), NFR-03 (desempenho), NFR-04 (disponibilidade), NFR-05 e NFR-05.1 (acessibilidade e verificação), NFR-06 (compatibilidade), NFR-07 (atualidade dos dados), NFR-08 (privacidade e segurança) |
+| **US-03 — Previsão de cinco dias** | AC-03.1, AC-03.2, AC-03.3, AC-03.4, AC-03.5; AC-04.2, AC-04.3; AC-05.1, AC-05.3, AC-05.4, AC-05.5, AC-05.6; AC-06.1, AC-06.2, AC-06.4, AC-06.5 | NFR-01 (responsividade), NFR-02 (usabilidade), NFR-03 (desempenho), NFR-04 (disponibilidade), NFR-05 e NFR-05.1 (acessibilidade e verificação), NFR-06 (compatibilidade), NFR-07 (atualidade dos dados), NFR-08 (privacidade e segurança) |
+| **US-04 — Unidade de temperatura** | AC-02.3, AC-03.3, AC-04.1, AC-04.2, AC-04.3, AC-04.4 | NFR-01 (responsividade), NFR-02 (usabilidade), NFR-05 e NFR-05.1 (acessibilidade e verificação), NFR-06 (compatibilidade), NFR-08 (não persistência de preferências) |
+| **US-05 — Falhas e nova tentativa** | AC-01.4, AC-05.1, AC-05.2, AC-05.3, AC-05.4, AC-05.5, AC-05.6; AC-06.1, AC-06.3 | NFR-01 (responsividade), NFR-03 (desempenho), NFR-04 (disponibilidade), NFR-05 e NFR-05.1 (acessibilidade e verificação), NFR-06 (compatibilidade), NFR-08 (privacidade e segurança) |
+| **US-06 — Estado da consulta** | AC-01.4, AC-02.4, AC-03.5; AC-05.1, AC-05.2, AC-05.3, AC-05.4, AC-05.5, AC-05.6; AC-06.1, AC-06.2, AC-06.3, AC-06.4, AC-06.5 | NFR-01 (responsividade), NFR-03 (desempenho), NFR-04 (disponibilidade), NFR-05 e NFR-05.1 (acessibilidade e verificação), NFR-06 (compatibilidade) |
+
 ## Edge Cases
 
 - O campo de pesquisa está vazio ou contém apenas espaços; a busca não é
