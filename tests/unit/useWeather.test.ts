@@ -88,12 +88,12 @@ describe('useWeather', () => {
     expect(result.current.status).toBe('success');
   });
 
-  it('comunica consulta em branco sem rede e permite nova busca', async () => {
+  it('ignora consulta em branco sem rede e permite nova busca', async () => {
     const { result } = renderHook(() => useWeather());
 
     await act(() => result.current.search('   '));
     expect(result.current.status).toBe('idle');
-    expect(result.current.error).toBe('Digite o nome de uma cidade.');
+    expect(result.current.error).toBeNull();
     await act(() => result.current.retry());
     expect(searchCities).not.toHaveBeenCalled();
     expect(getWeather).not.toHaveBeenCalled();

@@ -64,7 +64,15 @@ export async function searchCities(name: string): Promise<City[]> {
     throw new WeatherServiceError(`Erro ao buscar cidades (HTTP ${response.status}).`);
   }
 
-  const data: unknown = await response.json();
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new WeatherServiceError('Resposta de geocoding com JSON inválido.');
+    }
+    throw error;
+  }
   if (!isRecord(data) || data.error === true) {
     throw new WeatherServiceError('Resposta de geocoding inválida.');
   }

@@ -523,6 +523,14 @@ describe('searchCities', () => {
     await expect(searchCities('Lisboa')).rejects.toThrow(WeatherServiceError);
   });
 
+  it('converte JSON inválido em WeatherServiceError', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('invalid json')));
+
+    await expect(searchCities('Lisboa')).rejects.toThrow(
+      new WeatherServiceError('Resposta de geocoding com JSON inválido.'),
+    );
+  });
+
   it('propaga falhas de rede sem convertê-las em resultado vazio', async () => {
     const error = new TypeError('Falha de rede');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));

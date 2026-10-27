@@ -89,7 +89,7 @@ export function useWeather() {
         requestId.current += 1;
         lastOperation.current = null;
         pending.current = false;
-        setState({ ...initialState, error: 'Digite o nome de uma cidade.' });
+        setState(initialState);
         return;
       }
       await execute({ type: 'search', name: query });

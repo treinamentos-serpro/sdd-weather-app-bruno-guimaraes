@@ -290,12 +290,14 @@ O recorte implementado em `src/hooks/useWeather.ts` expõe `status`
 ou `null`), `query` e as ações assíncronas `search(name)`, `selectCity(city)` e
 `retry()`. A busca remove espaços externos, preserva a ordem das cidades e
 consulta automaticamente a previsão da primeira opção. Entrada em branco
-retorna a `idle` com orientação de validação, sem chamar serviços; ausência de
-cidades retorna `empty`. Cada operação limpa dados e erros anteriores; seleção
-preserva a consulta e as opções. Retry repete a última etapa com os mesmos
-parâmetros (somente previsão quando o geocoding já terminou) e não duplica uma
-operação em andamento. Respostas obsoletas e posteriores à desmontagem são
-descartadas. Os testes estão em `tests/unit/useWeather.test.ts`. A integração
+é validada pelo `SearchBar`, que exibe a orientação sem chamar o hook; o hook
+também ignora entradas em branco e invalida qualquer operação pendente.
+Ausência de cidades retorna `empty`. Cada operação limpa dados e erros
+anteriores; seleção preserva a consulta e as opções. Retry repete a última
+etapa com os mesmos parâmetros (somente previsão quando o geocoding já
+terminou) e não duplica uma operação em andamento. Respostas obsoletas e
+posteriores à desmontagem são descartadas. Os testes estão em
+`tests/unit/useWeather.test.ts`. A integração
 com a página está descrita no recorte de T-26; a unidade permanece como estado
 de UI no App. Os estados independentes permanecem fora deste recorte do hook.
 
