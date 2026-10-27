@@ -120,6 +120,18 @@ observáveis para validação automatizada.
   - **When:** a busca é concluída.
   - **Then:** o sistema informa que nenhuma cidade foi encontrada e mantém
     disponível a possibilidade de iniciar outra pesquisa.
+- **AC-01.5**
+  - **Given:** o campo de busca está vazio ou contém apenas espaços em branco.
+  - **When:** o usuário tenta iniciar a busca.
+  - **Then:** o sistema não envia uma consulta à fonte, informa que é necessário
+    digitar o nome de uma cidade e mantém o campo disponível para correção.
+- **AC-01.6**
+  - **Given:** o usuário pesquisa um nome de cidade que contém acentos,
+    espaços ou pontuação válida.
+  - **When:** o sistema envia a busca ao serviço de geocoding.
+  - **Then:** o texto da busca é preservado corretamente, sem remover ou
+    corromper esses caracteres, e os resultados seguem as regras de
+    correspondência definidas pela fonte.
 
 ### Para FR-02 — Consultar as condições atuais
 
@@ -140,6 +152,13 @@ observáveis para validação automatizada.
     Celsius.
   - **When:** o sistema apresenta as condições atuais.
   - **Then:** a temperatura é identificada e exibida em Celsius.
+- **AC-02.4**
+  - **Given:** a fonte retornou alguns dados atuais, mas um ou mais campos,
+    incluindo a temperatura ou a descrição da condição, estão ausentes.
+  - **When:** o sistema apresenta as condições atuais.
+  - **Then:** os campos disponíveis são exibidos e cada campo ausente é
+    identificado como indisponível, sem inventar valores ou apresentar conteúdo
+    de outra cidade.
 
 ### Para FR-03 — Consultar a previsão de cinco dias
 
@@ -165,6 +184,13 @@ observáveis para validação automatizada.
   - **When:** o sistema apresenta as datas da previsão.
   - **Then:** cada previsão é associada à data do calendário local da cidade,
     não à data do dispositivo.
+- **AC-03.5**
+  - **Given:** a fonte retornou previsão incompleta para uma ou mais das cinco
+    datas ou deixou ausentes alguns campos de uma data.
+  - **When:** o sistema apresenta a previsão.
+  - **Then:** os dados disponíveis são exibidos, os campos ou datas sem dados
+    são identificados como indisponíveis e a interface não sugere que a
+    previsão está completa.
 
 ### Para FR-04 — Alternar a unidade de temperatura
 
@@ -211,6 +237,19 @@ observáveis para validação automatizada.
   - **When:** o sistema apresenta o resultado dessa tentativa.
   - **Then:** a mensagem de falha permanece visível e a ação de tentar novamente
     continua disponível.
+- **AC-05.5**
+  - **Given:** uma busca ou consulta não foi concluída antes do limite de
+    timeout definido para a operação.
+  - **When:** o limite é atingido.
+  - **Then:** o sistema encerra a operação como falha, informa que os dados não
+    puderam ser obtidos e oferece nova tentativa, sem apresentar o timeout como
+    resultado vazio.
+- **AC-05.6**
+  - **Given:** a fonte retornou uma resposta vazia ou inválida que não pode ser
+    interpretada como um resultado parcial utilizável.
+  - **When:** o sistema processa a resposta.
+  - **Then:** o sistema comunica que os dados não puderam ser obtidos e oferece
+    nova tentativa, sem exibir valores inválidos como dados meteorológicos.
 
 ### Para FR-06 — Informar o estado da consulta
 
@@ -271,21 +310,32 @@ precisam de aprovação e de um método de medição acordado.
 
 ## Edge Cases
 
-- A pesquisa está vazia, contém apenas espaços ou não corresponde a nenhuma
-  cidade.
+- O campo de pesquisa está vazio ou contém apenas espaços; a busca não é
+  enviada, a interface solicita o nome de uma cidade e mantém o campo
+  disponível para correção.
+- O geocoding não encontra a cidade pesquisada, inclusive quando a localidade
+  não existe ou não está coberta pela fonte; o sistema apresenta um estado
+  vazio, não um erro de serviço, e permite iniciar outra pesquisa.
 - Há diversas cidades com o mesmo nome; o usuário precisa reconhecer a
   localidade correta pelo contexto geográfico disponível.
-- O usuário pesquisa nomes parciais, com acentos ou grafias alternativas; o
-  comportamento esperado da fonte ainda precisa ser confirmado.
+- O usuário pesquisa nomes parciais, com acentos, espaços ou pontuação válida;
+  o texto deve ser preservado ao enviar a consulta. O suporte a grafias
+  alternativas e a regra de correspondência dependem da fonte e precisam ser
+  confirmados.
 - A busca ou a consulta falha por falta de rede, timeout, indisponibilidade ou
-  limite da fonte. A interface deve comunicar a falha e permitir nova tentativa.
-- A fonte retorna resposta vazia, incompleta ou inválida, inclusive sem
-  temperatura, descrição ou dados para uma ou mais datas da previsão. O sistema
-  não deve apresentar conteúdo ausente como se fosse um dado válido; a
-  comunicação específica precisa ser definida.
-- A fonte responde lentamente; enquanto a operação não terminar, deve ser
-  possível distinguir carregamento de resultado vazio ou falha. O limite de
-  timeout ainda não está definido.
+  limite da fonte; a interface comunica falha, encerra o carregamento e permite
+  repetir a mesma operação. Timeout não deve ser comunicado como busca sem
+  resultados; o limite de tempo ainda precisa ser definido.
+- A fonte retorna alguns dados meteorológicos, mas omite campos atuais ou
+  dados de uma ou mais datas da previsão; a interface exibe somente os dados
+  disponíveis e identifica os campos ou dias ausentes como indisponíveis, sem
+  sugerir cobertura completa.
+- A fonte retorna uma resposta vazia ou inválida que não pode ser usada como
+  dado parcial; o sistema comunica falha e oferece nova tentativa, sem exibir
+  valores inválidos.
+- A fonte responde lentamente; enquanto a operação não terminar ou atingir o
+  limite de timeout, deve ser possível distinguir carregamento, resultado vazio
+  e falha.
 - O usuário troca a cidade enquanto uma consulta está em andamento; os dados
   exibidos devem continuar identificados com a cidade a que pertencem.
 - O fuso horário local da cidade, a mudança de data ou o horário de verão
