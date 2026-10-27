@@ -220,6 +220,40 @@ interface WeatherAppError {
 7. Uma nova tentativa reutiliza exatamente os parâmetros da operação que
    falhou. Um acionamento não inicia operações duplicadas.
 
+```mermaid
+flowchart TD
+    UI[Componentes de UI: busca e estados] -->|envia pesquisa| H[Hook: useWeatherSearch]
+    H --> V{Consulta vazia?}
+    V -->|Sim| HV[Estado de validação]
+    HV -->|orientação para digitar uma cidade| UI
+    V -->|Não| HL[Estado: buscando cidades]
+    HL -->|loading| UI
+    HL --> GEO[Geocoding service]
+
+    GEO --> GR{Resultado do geocoding}
+    GR -->|Falha de serviço| HE[Estado: erro na busca]
+    HE -->|erro e ação de tentar novamente| UI
+    UI -->|tentar novamente| H
+    GR -->|Nenhuma cidade encontrada| HN[Estado: busca vazia]
+    HN -->|nenhum resultado e campo disponível| UI
+    GR -->|Cidades encontradas| HR[Estado: opções de cidade]
+    HR -->|lista de localidades| UI
+
+    UI -->|usuário seleciona uma cidade| H
+    H -->|coordenadas da cidade selecionada| HF[Estado: carregando previsão]
+    HF -->|loading| UI
+    HF --> FC[Forecast service]
+
+    FC --> FR{Resultado do forecast}
+    FR -->|Falha de serviço| HFE[Estado: erro na previsão]
+    HFE -->|erro e ação de tentar novamente| UI
+    UI -->|tentar novamente a previsão| H
+    FR -->|Sem dados de previsão| HFN[Estado: previsão vazia]
+    HFN -->|sem dados disponíveis| UI
+    FR -->|Dados completos ou parciais| HS[Estado: sucesso]
+    HS -->|dados da cidade e previsão; ausências indicadas| UI
+```
+
 ## External APIs
 
 **Open-Meteo**, por HTTPS e sem chave fornecida pelo usuário, sujeito à
