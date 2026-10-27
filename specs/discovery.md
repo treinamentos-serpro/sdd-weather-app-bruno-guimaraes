@@ -39,19 +39,108 @@ Os critérios quantitativos abaixo são propostas iniciais para validação; o b
 
 ## Perguntas em Aberto
 
-1. A aplicação será um site responsivo, um app instalável (PWA) ou ambos?
-2. Qual fonte de dados meteorológicos deve ser utilizada? Há requisitos de licença, custo ou limites de uso?
-3. A busca deve aceitar apenas o nome da cidade ou também país, estado/região e código postal?
-4. O que deve ser exibido para diferenciar cidades homônimas?
-5. Quais informações compõem “clima atual” e “previsão de 5 dias” (por exemplo: temperatura mínima/máxima, condição, precipitação e vento)?
-6. A previsão de cinco dias deve incluir dados por dia ou também por hora?
-7. Celsius ou Fahrenheit deve ser a unidade inicial? A preferência deve persistir entre visitas?
-8. O produto deve oferecer localização automática por GPS ou permitir salvar cidades favoritas?
-9. Qual idioma ou quais idiomas devem ser suportados?
-10. As metas propostas de desempenho (95% em até 3 segundos), disponibilidade (99,5% ao mês), responsividade (a partir de 320 px) e acessibilidade (WCAG 2.2 AA) são adequadas? Quais navegadores e versões devem ser compatíveis?
-11. Como a aplicação deve se comportar quando a busca não encontrar resultados ou a fonte de dados falhar?
-12. Qual idade máxima os dados podem ter antes de serem identificados como desatualizados?
-13. Quais dados podem ser coletados, por quanto tempo devem ser retidos e a localização por GPS será oferecida?
+As perguntas abaixo detalham as decisões ainda necessárias. O impacto descreve o risco de avançar sem uma resposta acordada.
+
+### Produto e público
+
+1. **Pergunta:** Quem são os usuários prioritários e em que situações consultarão o app?
+   **Impacto:** A experiência pode ser otimizada para o público ou contexto errado, como consulta casual em vez de planejamento de viagem.
+2. **Pergunta:** Qual problema principal o produto deve resolver e como será medido o sucesso?
+   **Impacto:** Faltam critérios para priorizar funcionalidades e avaliar se o produto entrega valor.
+3. **Pergunta:** “Acessar por dispositivos móveis” significa site responsivo, PWA instalável, apps nativos ou uma combinação?
+   **Impacto:** Escopo, custo e expectativas sobre instalação, notificações e uso offline podem mudar substancialmente.
+4. **Pergunta:** O produto será direcionado a uma região ou público geográfico específico?
+   **Impacto:** Cobertura de cidades, idioma, formatos, unidades e requisitos regulatórios podem ser definidos incorretamente.
+
+### Busca e seleção de cidades
+
+5. **Pergunta:** Quais entradas a busca aceitará: nome, país, estado/região, código postal ou coordenadas?
+   **Impacto:** Usuários podem não localizar a cidade pretendida; também ficam indefinidos o tratamento de acentos, grafias alternativas e nomes parciais.
+6. **Pergunta:** A busca ocorrerá após envio ou terá sugestões enquanto o usuário digita, correção de erros ou histórico?
+   **Impacto:** Fluxos, estados de carregamento e expectativas de velocidade ficam indefinidos; incluir esses recursos depois pode exigir retrabalho.
+7. **Pergunta:** Que informações identificarão resultados homônimos, como país, estado ou região?
+   **Impacto:** O usuário pode selecionar a cidade errada e receber dados plausíveis, mas referentes a outro lugar.
+8. **Pergunta:** Como serão tratados nenhum resultado, muitos resultados, entrada inválida e falha de busca?
+   **Impacto:** A busca pode terminar sem orientação ou parecer travada; “tentar novamente” não define todos esses cenários.
+9. **Pergunta:** A busca deve cobrir qualquer localidade disponível na fonte ou haverá limites geográficos?
+   **Impacto:** A cobertura percebida pode divergir da cobertura real, especialmente para localidades pequenas ou regiões menos atendidas.
+
+### Dados meteorológicos e previsões
+
+10. **Pergunta:** Qual fonte será usada e quais restrições de licença, atribuição, custo, limites e disponibilidade se aplicam?
+    **Impacto:** A fonte escolhida pode não permitir o uso pretendido, exceder limites ou não oferecer cobertura e dados necessários.
+11. **Pergunta:** Quais campos definem “condições atuais” e “previsão” (por exemplo, sensação térmica, precipitação, vento e umidade)?
+    **Impacto:** O produto pode omitir informações que usuários ou stakeholders consideram essenciais.
+12. **Pergunta:** A previsão de cinco dias será diária, horária ou terá as duas granularidades?
+    **Impacto:** “Cinco dias” pode resultar em experiências bastante diferentes, afetando apresentação, volume de dados e interpretação.
+13. **Pergunta:** Cada dia da previsão representa o dia civil local, as próximas 24 horas ou outro intervalo?
+    **Impacto:** A previsão pode começar ou terminar em horários inesperados e parecer incompatível com o calendário local.
+14. **Pergunta:** Como serão tratados fuso horário, horário de verão, nascer/pôr do sol e mudanças de data?
+    **Impacto:** Horários e previsões podem ser atribuídos ao dia errado, sobretudo em locais distantes do fuso do usuário.
+15. **Pergunta:** Qual é a frequência de atualização e o que significa “clima atual” para o produto?
+    **Impacto:** Dados defasados podem parecer atuais; atualizações excessivas podem elevar custos ou consumir limites da fonte.
+16. **Pergunta:** Qual idade máxima torna um dado desatualizado e como isso será comunicado?
+    **Impacto:** Usuários podem confiar em dados antigos ou receber rótulos inadequados à cadência real da fonte.
+17. **Pergunta:** O produto precisa exibir alertas meteorológicos ou eventos severos?
+    **Impacto:** Se forem esperados, sua ausência pode ser uma lacuna relevante; se não forem, usuários ainda podem presumir que o app os oferece.
+18. **Pergunta:** Como serão explicadas a incerteza, a precisão e as limitações da previsão?
+    **Impacto:** Usuários podem interpretar estimativas como garantias, especialmente para previsões distantes ou locais com cobertura limitada.
+
+### Unidades, idioma e preferências
+
+19. **Pergunta:** Qual será a unidade inicial de temperatura e como a preferência será armazenada?
+    **Impacto:** Usuários podem ver uma unidade inesperada ou perder a escolha ao atualizar ou reabrir o app.
+20. **Pergunta:** Celsius e Fahrenheit são as únicas unidades necessárias? Como serão tratados vento, precipitação e distância?
+    **Impacto:** A alternância pode converter apenas a temperatura, deixando grandezas relacionadas inconsistentes ou sem contexto compreensível.
+21. **Pergunta:** Quais idiomas serão suportados e como serão localizados descrições meteorológicas, datas e números?
+    **Impacto:** Interface e dados podem aparecer em idiomas ou formatos misturados, comprometendo compreensão e confiança.
+22. **Pergunta:** Idioma e unidades seguirão a configuração do dispositivo, uma escolha no app ou outra regra?
+    **Impacto:** O comportamento inicial pode surpreender e gerar inconsistências entre sessões ou regiões.
+
+### Localização, favoritos e persistência
+
+23. **Pergunta:** A localização por GPS fará parte do produto? Se sim, quando será solicitada e haverá alternativa manual?
+    **Impacto:** Pedir permissão sem contexto pode reduzir confiança; não oferecer alternativa pode bloquear quem negar a permissão.
+24. **Pergunta:** Será possível salvar cidades favoritas ou manter cidades consultadas recentemente?
+    **Impacto:** Sem essa decisão, não se sabe se o fluxo deve privilegiar consultas pontuais ou acesso recorrente, nem quais dados persistir.
+25. **Pergunta:** O app precisa funcionar offline ou apresentar a última consulta quando a rede falhar?
+    **Impacto:** Conexões instáveis podem tornar o app inutilizável; dados armazenados sem indicação de idade podem induzir a erro.
+26. **Pergunta:** Haverá contas, sincronização entre dispositivos ou armazenamento apenas local?
+    **Impacto:** Persistência, privacidade e esforço de implementação ficam indefinidos; preferências podem não acompanhar o usuário.
+
+### Erros e interação
+
+27. **Pergunta:** Quais falhas precisam ser distinguidas: falta de rede, limite da fonte, cidade não encontrada, erro do serviço ou dado inválido?
+    **Impacto:** Mensagens e ações de recuperação podem ser inadequadas; tentar novamente não resolve todos os tipos de falha.
+28. **Pergunta:** Quando e como o usuário poderá atualizar os dados novamente?
+    **Impacto:** Ficam indefinidos o equilíbrio entre atualidade, consumo da fonte e comportamento da interface.
+29. **Pergunta:** Quais estados visuais são necessários durante busca e consulta, e como a seleção da cidade será confirmada?
+    **Impacto:** O usuário pode não saber se a ação foi aceita, se os dados estão carregando ou qual cidade está sendo exibida.
+30. **Pergunta:** Como será validado que a busca, a consulta e a alternância de unidade são compreensíveis sem treinamento?
+    **Impacto:** O requisito de usabilidade não será verificável; a equipe pode presumir que a interface é intuitiva sem evidência.
+
+### Qualidade, operação e requisitos técnicos
+
+31. **Pergunta:** As metas propostas de desempenho, disponibilidade, largura mínima e acessibilidade foram aprovadas? Como serão medidas?
+    **Impacto:** Propostas podem ser tratadas como compromissos ou ignoradas sem acordo sobre critérios de aceite.
+32. **Pergunta:** O que significa “95% das consultas em até 3 segundos”: qual população, período, dispositivo, rede e intervalo de medição?
+    **Impacto:** A meta não pode ser verificada consistentemente; diferentes métodos podem produzir resultados incompatíveis.
+33. **Pergunta:** Como será calculada a disponibilidade de 99,5% e como serão separadas falhas da aplicação e da fonte externa?
+    **Impacto:** Fica indefinido se a meta mede a experiência completa ou somente componentes sob controle da equipe.
+34. **Pergunta:** Quais navegadores e versões são obrigatórios?
+    **Impacto:** Incompatibilidades podem ser descobertas tarde, causando retrabalho ou exclusão de usuários.
+35. **Pergunta:** Quais critérios de aceite demonstrarão WCAG 2.2 AA nas telas principais?
+    **Impacto:** A acessibilidade pode não ser testada de ponta a ponta; controles, mensagens dinâmicas e fluxos podem permanecer inacessíveis.
+36. **Pergunta:** Quais dados serão coletados pelo app, pela infraestrutura e por ferramentas de análise, para quais finalidades e por quanto tempo?
+    **Impacto:** A documentação pode omitir coleta indireta ou retenção real, gerando riscos de confiança, conformidade e mudanças tardias.
+37. **Pergunta:** Há requisitos de segurança, retenção ou região de armazenamento além de proteger dados em trânsito?
+    **Impacto:** As proteções definidas podem não cobrir os dados coletados nem as obrigações aplicáveis ao produto.
+38. **Pergunta:** Quem monitorará falhas, limites da fonte, desempenho e disponibilidade, e qual será o procedimento de resposta?
+    **Impacto:** Metas sem monitoramento não permitem detectar regressões nem agir diante de degradação do serviço.
+
+### Decisões prioritárias
+
+Antes de fechar o escopo, priorizar a definição do público e objetivo do produto, plataforma, fonte e licença dos dados, conteúdo e granularidade da previsão, busca e desambiguação, e comportamento diante de dados ausentes ou desatualizados. Essas decisões condicionam boa parte da experiência, da arquitetura e dos critérios de aceite.
 
 ## Suposições
 
