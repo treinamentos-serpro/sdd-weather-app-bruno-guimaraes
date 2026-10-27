@@ -109,7 +109,7 @@ usuários.
   ao ar livre, quero receber indicação de carregamento, resultados ou ausência
   de resultados para entender o estado da consulta e decidir o próximo passo.
 
-## Critérios de Aceite
+## Acceptance Criteria
 
 Os critérios estão identificados por requisito para manter rastreabilidade.
 Cada cenário usa `Given/When/Then` (Dado/Quando/Então) e define condições
