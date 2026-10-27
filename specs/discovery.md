@@ -12,18 +12,20 @@ Este documento registra o entendimento inicial do briefing. Fonte de dados, púb
 - **RF-02 — Consultar clima atual:** exibir as condições meteorológicas atuais da cidade selecionada.
 - **RF-03 — Consultar previsão:** exibir a previsão para cinco dias da cidade selecionada.
 - **RF-04 — Alternar unidade:** permitir alternar entre Celsius e Fahrenheit e atualizar as temperaturas exibidas.
-- **RF-05 — Usar em dispositivos móveis:** disponibilizar uma experiência utilizável em dispositivos móveis.
+- **RF-05 — Tratar falhas de consulta:** informar quando não for possível obter os dados meteorológicos e permitir que o usuário tente novamente.
 
 ## Requisitos Não-Funcionais
 
-Os itens abaixo são propostas iniciais para validação; o briefing não define metas quantitativas.
+Os critérios quantitativos abaixo são propostas iniciais para validação; o briefing não define metas.
 
-- **RNF-01 — Responsividade:** conteúdo e controles devem se adaptar a diferentes tamanhos de tela, incluindo dispositivos móveis.
-- **RNF-02 — Usabilidade:** busca, consulta da previsão e alternância de unidade devem ser compreensíveis e acessíveis sem instruções externas.
-- **RNF-03 — Desempenho:** resultados devem ser apresentados em tempo adequado; definir uma meta de resposta durante a especificação.
-- **RNF-04 — Disponibilidade dos dados:** a aplicação deve informar quando os dados meteorológicos não puderem ser obtidos ou estiverem indisponíveis.
-- **RNF-05 — Acessibilidade:** interface e controles devem oferecer suporte a navegação por teclado e tecnologias assistivas, conforme padrão a confirmar.
+- **RNF-01 — Responsividade:** conteúdo e controles devem se adaptar a diferentes tamanhos de tela. Em larguras a partir de 320 px, as funções principais devem estar disponíveis sem rolagem horizontal.
+- **RNF-02 — Usabilidade:** busca, consulta da previsão e alternância de unidade devem ser compreensíveis sem treinamento ou documentação externa.
+- **RNF-03 — Desempenho:** como meta inicial, 95% das consultas devem apresentar resultados em até 3 segundos, sob condições de rede a definir. O tempo de resposta da fonte externa deve ser considerado e medido separadamente.
+- **RNF-04 — Disponibilidade:** como meta inicial, a aplicação deve manter disponibilidade mensal de 99,5%. A medição deve distinguir a disponibilidade da aplicação da disponibilidade da fonte externa de dados.
+- **RNF-05 — Acessibilidade:** atender ao WCAG 2.2 nível AA nas telas principais, incluindo operação por teclado, foco visível, contraste adequado e nomes acessíveis para controles.
 - **RNF-06 — Compatibilidade:** navegadores e versões móveis suportados devem ser definidos antes da implementação.
+- **RNF-07 — Atualidade dos dados:** exibir o horário da última atualização e definir uma idade máxima para considerar os dados atuais; dados mais antigos devem ser identificados como desatualizados.
+- **RNF-08 — Privacidade e segurança:** documentar dados coletados, finalidade e período de retenção; proteger dados em trânsito. Caso seja implementada localização por GPS, seu uso deve ser informado e depender de permissão do usuário.
 
 ## Riscos
 
@@ -32,6 +34,7 @@ Os itens abaixo são propostas iniciais para validação; o briefing não define
 - **Atualidade dos dados:** sem uma política de atualização e indicação de horário, usuários podem interpretar dados desatualizados como atuais.
 - **Diferenças de fuso horário:** a previsão diária pode ser agrupada incorretamente se o fuso da cidade não for considerado.
 - **Escopo móvel indefinido:** “usar em dispositivos móveis” pode significar apenas um site responsivo ou também uma aplicação instalável.
+- **Dependência de localização:** se localização automática for incluída, permissões e tratamento de dados de localização precisam ser definidos.
 - **Expectativas não especificadas:** não há definição sobre unidades de outras grandezas, idioma, localização automática ou persistência de preferências.
 
 ## Perguntas em Aberto
@@ -45,8 +48,10 @@ Os itens abaixo são propostas iniciais para validação; o briefing não define
 7. Celsius ou Fahrenheit deve ser a unidade inicial? A preferência deve persistir entre visitas?
 8. O produto deve oferecer localização automática por GPS ou permitir salvar cidades favoritas?
 9. Qual idioma ou quais idiomas devem ser suportados?
-10. Quais são as metas de desempenho, disponibilidade, acessibilidade e compatibilidade de navegadores?
+10. As metas propostas de desempenho (95% em até 3 segundos), disponibilidade (99,5% ao mês), responsividade (a partir de 320 px) e acessibilidade (WCAG 2.2 AA) são adequadas? Quais navegadores e versões devem ser compatíveis?
 11. Como a aplicação deve se comportar quando a busca não encontrar resultados ou a fonte de dados falhar?
+12. Qual idade máxima os dados podem ter antes de serem identificados como desatualizados?
+13. Quais dados podem ser coletados, por quanto tempo devem ser retidos e a localização por GPS será oferecida?
 
 ## Suposições
 
