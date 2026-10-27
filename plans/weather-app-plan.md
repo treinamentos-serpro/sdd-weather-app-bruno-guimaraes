@@ -164,22 +164,29 @@ export interface WeatherData {
 - O serviço deve garantir cinco datas consecutivas em `forecast`; o tipo
   `ForecastDay[]` não impõe esse tamanho. Mesmo quando a fonte omitir uma data,
   a posição mantém `localDate` e os demais campos como `null`.
-- `descriptionPtBr` é derivada pela aplicação de uma tabela explícita dos
-  códigos meteorológicos WMO suportados; não vem da API de previsão. Códigos
-  desconhecidos resultam em descrição `null`, sem inventar condições.
+- `descriptionPtBr` é derivada por uma tabela da aplicação que cobre todos os
+  códigos WMO documentados pela Open-Meteo no momento da implementação, com
+  descrições em pt-BR. A tabela deve seguir a documentação oficial da API de
+  previsão; códigos desconhecidos ou ainda não mapeados resultam em descrição
+  `null`, sem inventar condições.
 - Temperaturas são armazenadas em Celsius, com a precisão de origem. `Unit`
   pertence ao estado da interface: alterná-la converte somente a exibição,
   sem nova requisição. Arredondar ao inteiro mais próximo com empates para
   longe de zero apenas na apresentação.
-- `sourceLocalTime` é o horário de referência das condições atuais, não o
-  instante de atualização da previsão. Não interpretar esse valor no fuso do
-  dispositivo; usar o contexto de fuso retornado pela fonte.
+- `sourceLocalTime` é o horário local de referência das condições atuais, não
+  o instante de atualização da previsão. Validar o formato e os componentes de
+  data/hora; tratá-los como componentes UTC, sem deixar o runtime aplicar o
+  fuso do dispositivo, e subtrair `utcOffsetSeconds` retornado na mesma
+  resposta para obter o instante UTC da fonte. Comparar com o relógio atual em
+  UTC; classificar como desatualizado somente se a diferença exceder duas
+  horas. Se o horário ou o deslocamento estiver ausente ou inválido, não
+  afirmar que os dados estão atualizados ou desatualizados.
 - Não incluir `updatedAt` ou `forecastUpdatedAt` enquanto não houver um campo
   confiável documentado pela fonte para a atualização da previsão.
 
-Estados assíncronos devem distinguir `idle`, `loading`, `success`, `empty` e
-`error`. `empty` aplica-se a geocoding sem correspondências; não é estado de
-erro meteorológico.
+Estados assíncronos distinguem `idle`, `loading`, `success` e `error`; somente
+a busca também pode terminar em `empty` sem correspondências. A previsão não
+tem estado `empty`.
 
 ```ts
 type RetryRequest =
@@ -248,8 +255,8 @@ flowchart TD
     FR -->|Falha de serviço| HFE[Estado: erro na previsão]
     HFE -->|erro e ação de tentar novamente| UI
     UI -->|tentar novamente a previsão| H
-    FR -->|Sem dados de previsão| HFN[Estado: previsão vazia]
-    HFN -->|sem dados disponíveis| UI
+    FR -->|Resposta sem campo meteorológico utilizável| HFI[Erro: resposta inválida]
+    HFI -->|erro e ação de tentar novamente| UI
     FR -->|Dados completos ou parciais| HS[Estado: sucesso]
     HS -->|dados da cidade e previsão; ausências indicadas| UI
 ```
@@ -345,6 +352,15 @@ Referências oficiais: [Forecast API](https://open-meteo.com/en/docs) e
 - Usar o timezone retornado e `current.time` como referência para o primeiro
   dia local; associar previsões por `YYYY-MM-DD` e não pelo calendário/fuso do
   dispositivo. Não inferir valores ou horários que a resposta não forneça.
+- Para o aviso de atualidade, interpretar `current.time` com o
+  `utc_offset_seconds` da mesma resposta: validar o formato e os componentes
+  da data/hora local, interpretá-los como componentes UTC sem aplicar o fuso do
+  dispositivo e subtrair o deslocamento para obter o instante da fonte. Comparar
+  com o relógio atual UTC; o aviso aparece somente quando a diferença exceder
+  duas horas. Se o horário ou deslocamento não for válido, não classificar os
+  dados como atualizados ou desatualizados. `timezone` identifica o fuso da
+  cidade e não deve levar à interpretação do horário de origem no fuso do
+  dispositivo.
 - Cada requisição expira em 10 segundos. Timeout, erro HTTP/rede ou resposta
   estruturalmente inválida são falhas recuperáveis; lista válida vazia do
   geocoding é resultado vazio.
@@ -360,26 +376,29 @@ os estados independentes de busca e previsão e a unidade escolhida vivem
 juntos nesse estado local. A unidade inicia em Celsius e não é persistida.
 
 ```ts
-type OperationState<T> =
+type AsyncState<T> =
   | { status: "idle" }
   | { status: "loading"; requestId: number }
   | { status: "success"; data: T }
-  | { status: "empty" }
   | { status: "error"; error: WeatherAppError };
+
+type SearchState = AsyncState<City[]> | { status: "empty" };
 
 interface WeatherPageState {
   query: string;
-  search: OperationState<City[]>;
+  search: SearchState;
   selectedCity: City | null;
-  weather: OperationState<WeatherData>;
+  weather: AsyncState<WeatherData>;
   unit: Unit; // inicia em celsius; nunca persistida
 }
 ```
 
 As transições são explícitas: cada operação começa em `idle`, passa a `loading`
 quando enviada e termina em `success` ou `error`; busca bem-sucedida sem
-correspondências termina em `empty`. `empty` é um resultado válido somente
-para geocoding, nunca uma falha ou um estado meteorológico sem dados.
+correspondências termina em `empty`. `empty` existe somente em `SearchState`,
+nunca como estado meteorológico. Resposta de previsão sem qualquer campo
+meteorológico utilizável é erro `invalid-response`; resposta parcial com ao
+menos um campo meteorológico válido é sucesso com indisponibilidades indicadas.
 Operações de busca e previsão têm estados independentes. Ao mudar cidade,
 associar imediatamente a previsão ao novo alvo e não renderizar os dados da
 cidade anterior sob o nome novo. Uma resposta assíncrona só pode atualizar o
@@ -422,8 +441,11 @@ arredondados.
   perceptível e acessível (incluindo leitores de tela); falha não deixa
   carregamento ativo.
 - Condições atuais exibem o horário de referência da fonte no fuso local e
-  recebem indicação de desatualizadas se tiverem mais de duas horas. Se o
-  horário for ausente/inválido, não afirmar atualização nem desatualização.
+  recebem indicação de desatualizadas se tiverem mais de duas horas. Para
+  comparação, interpretar `current.time` com `utc_offset_seconds` da mesma
+  resposta e comparar o instante UTC resultante com o relógio atual UTC.
+  Exatamente duas horas não é desatualizado. Se o horário ou deslocamento for
+  ausente/inválido, não afirmar atualização nem desatualização.
   Para previsão, só exibir atualização se houver campo confiável documentado.
 
 ## Testing Strategy
@@ -439,23 +461,24 @@ principal não depende da disponibilidade real da Open-Meteo.
 | Camada | Cobertura principal |
 |---|---|
 | Funções puras de conversão | Celsius ↔ Fahrenheit, incluindo `0 °C → 32 °F`, `100 °C → 212 °F` e `−40 °C → −40 °F`. Arredondamento com empates para longe de zero (`1,5 → 2`; `−1,5 → −2`). Preservação da precisão original e ausência de deriva ao alternar unidades repetidamente. |
-| Normalizadores e demais funções de `lib/` | Payloads completos, parciais e inválidos; campos ausentes, `null`, valores não numéricos, `NaN` e infinitos; códigos WMO conhecidos e desconhecidos. Exatamente cinco datas consecutivas no calendário da cidade, inclusive viradas de mês/ano e dias sem dados, sem depender do fuso do dispositivo. |
-| Horários e atualidade | Relógio controlado para verificar o limite de duas horas: exatamente duas horas não indica desatualização; mais de duas horas indica. Horário ausente/inválido não permite afirmar atualização nem desatualização. Incluir diferenças de fuso e horário de verão. |
-| Services com mock de `fetch` | Endpoint, parâmetros, codificação de acentos/espaços/pontuação e ordem do geocoding. Forecast com coordenadas da seleção, Celsius, `timezone=auto` e cinco dias. Sucesso, geocoding vazio, erro HTTP, erro declarado pela API, rejeição de rede, JSON inválido e resposta incompatível. |
-| Timeout e limpeza | Timers controlados para verificar expiração em 10 segundos, classificação como `timeout` e liberação de timers após sucesso/falha, sem aguardar dez segundos reais. Verificar cancelamento quando implementado; restaurar mocks e timers entre testes. |
+| Normalizadores e demais funções de `lib/` | Payloads completos, parciais e inválidos; campos ausentes, `null`, valores não numéricos, `NaN` e infinitos; todos os códigos WMO documentados pela Open-Meteo e códigos desconhecidos. Exatamente cinco datas consecutivas no calendário da cidade, inclusive viradas de mês/ano e dias sem dados, sem depender do fuso do dispositivo. |
+| Horários e atualidade | Relógio controlado para verificar o limite de duas horas: exatamente duas horas não indica desatualização; mais de duas horas indica. Converter usando o deslocamento UTC fornecido na resposta, cobrindo offsets positivo/negativo e horário de verão conforme o deslocamento da resposta. Horário ou deslocamento ausente/inválido não permite afirmar atualização nem desatualização. |
+| Serviços com mock de `fetch` | Endpoint, parâmetros, codificação de acentos/espaços/pontuação e ordem do geocoding. Forecast com coordenadas da seleção, Celsius, `timezone=auto` e cinco dias. Sucesso, geocoding vazio, erro HTTP, erro declarado pela API, rejeição de rede, JSON inválido e resposta incompatível. |
+| Timeout e limpeza | Timers controlados para verificar expiração em 10 segundos, classificação como `timeout` e liberação de timers após sucesso/falha, sem aguardar dez segundos reais. Restaurar mocks e timers entre testes. |
 | Hook de orquestração | Transições de estado, independência entre busca e previsão, retry com os mesmos parâmetros, bloqueio de operações duplicadas e descarte de respostas obsoletas. Serviços substituídos por mocks, sem tráfego de rede. |
 | Componentes | Comportamento observável com Testing Library, roles, labels e interações de usuário. Evitar snapshots extensos e acoplamento a detalhes internos do React. |
 
 #### Matriz de estados e interações dos componentes
 
-- **Loading:** indicação acessível durante busca e previsão; operações
+- **Carregamento (`loading`):** indicação acessível durante busca e previsão; operações
   duplicadas impedidas; nenhum dado da cidade anterior apresentado sob a nova
   seleção.
 - **Erro:** mensagem pt-BR, término do loading e ação de nova tentativa.
   Falhas não podem ser apresentadas como lista vazia.
 - **Vazio:** geocoding sem correspondências informa a ausência e permite nova
   busca. Não há estado vazio meteorológico: resposta totalmente inutilizável
-  é erro; parcialmente utilizável é sucesso com indisponibilidades.
+  é erro `invalid-response`; parcialmente utilizável é sucesso com
+  indisponibilidades.
 - **Sucesso:** contexto geográfico e coordenadas quando necessárias, condições
   atuais, cinco dias, campos indisponíveis e atribuição Open-Meteo.
 - **Interações:** busca por botão e Enter; consulta em branco orienta a correção
@@ -466,10 +489,10 @@ principal não depende da disponibilidade real da Open-Meteo.
   operação mais recente. Resultado e identificação da cidade permanecem
   consistentes, inclusive quando a resposta obsoleta é uma falha.
 
-### Playwright: fluxos E2E e viewport mobile
+### Playwright: fluxos E2E e tela mobile
 
 Interceptar geocoding e forecast com fixtures determinísticas, mantendo a
-aplicação integrada da interface aos services. Controlar atrasos e ordem das
+aplicação integrada da interface aos serviços. Controlar atrasos e ordem das
 respostas; usar asserções com espera automática em vez de sleeps fixos.
 
 | Cenário E2E | Verificação |
@@ -479,14 +502,15 @@ respostas; usar asserções com espera automática em vez de sleeps fixos.
 | Falha e recuperação | Falhas de busca e previsão, separadamente; retry explícito envia os mesmos parâmetros e pode recuperar o fluxo. |
 | Latência e concorrência | Resposta atrasada torna loading observável; respostas antigas não substituem a busca ou cidade mais recente. |
 | Dados parciais | Campos e dias ausentes aparecem como indisponíveis, sem deslocar datas ou inventar valores. |
-| Teclado e acessibilidade | Completar o fluxo sem mouse; verificar foco, nomes acessíveis e comunicação de estados. Complementar com auditoria automatizada e revisão manual. |
-| Viewport mobile | Executar a jornada principal em 320 px de largura e em um viewport mobile representativo de 390 × 844. Validar controles acessíveis, leitura dos cinco dias e ausência de rolagem horizontal em loading, erro, vazio e sucesso. |
+| Teclado e acessibilidade | Completar o fluxo sem mouse; verificar foco, nomes acessíveis e comunicação de estados. Executar auditoria automatizada e revisão manual por teclado e leitores de tela, corrigindo violações WCAG 2.2 AA antes da entrega. |
+| Tela mobile | Executar a jornada principal em 320 px de largura e em uma tela mobile representativa de 390 × 844. Validar controles acessíveis, leitura dos cinco dias e ausência de rolagem horizontal em carregamento, erro, vazio e sucesso. |
 
-Executar em Chromium, Firefox e WebKit. Emulação mobile e WebKit não comprovam,
-sozinhos, compatibilidade com Safari/iOS ou com as duas versões estáveis mais
-recentes exigidas. Complementar com validação nas versões-alvo de Chrome,
-Edge, Firefox e Safari (incluindo macOS/iOS), registrando browser, versão,
-sistema e viewport.
+Executar os fluxos E2E em Chromium. Para cumprir NFR-06 sem multiplicar a
+execução da suíte integrada, fazer validação de compatibilidade separada nas
+duas versões estáveis mais recentes de Chrome, Edge, Firefox e Safari,
+incluindo Safari em macOS e iOS. Registrar navegador, versão, sistema e
+viewport; emulação mobile ou WebKit isoladamente não comprova compatibilidade
+com Safari/iOS.
 
 ### Validação e limites da evidência
 
@@ -495,8 +519,10 @@ sistema e viewport.
 - Mocks e fixtures garantem repetibilidade, mas não validam o contrato atual
   nem a disponibilidade da Open-Meteo. Fazer verificação de integração real
   separada, sem tornar a suíte principal dependente da fonte.
-- Automação de acessibilidade não substitui revisão manual de teclado, foco
-  e leitores de tela nos estados de busca, loading, vazio, erro e resultados.
+- Atender WCAG 2.2 nível AA nas telas principais. Antes da entrega, executar
+  verificação automatizada e revisão manual por teclado e leitores de tela nos
+  estados de busca, carregamento, vazio, erro e resultados; corrigir as
+  violações identificadas. Automação isolada não comprova conformidade.
 - Conduzir teste moderado com ao menos cinco participantes representativos
   (meta: quatro completam as tarefas sem ajuda).
 - Antes da publicação, registrar método, ambiente, rede, amostras, população,
@@ -528,12 +554,12 @@ sistema e viewport.
 |---|---|
 | Cobertura, limites, disponibilidade, licença ou atribuição da Open-Meteo podem não atender ao uso. | Validar todos antes da implementação; manter a fonte ou reabrir a decisão se a validação falhar. |
 | Localidades homônimas podem levar à consulta errada. | Mostrar contexto geográfico e, se insuficiente, coordenadas; consultar usando a seleção/coordenadas, nunca apenas o nome. |
-| Datas ou atualidade podem ser interpretadas incorretamente por diferença de fuso ou horário de verão. | Usar timezone e datas locais da fonte; validar semântica/documentação do horário antes de definir conversões. |
+| Datas ou atualidade podem ser interpretadas incorretamente por diferença de fuso ou horário de verão. | Usar timezone, datas locais e `utc_offset_seconds` da fonte; validar a semântica e o cálculo do horário com a documentação oficial antes da implementação. |
 | Respostas lentas, falhas ou concorrência podem deixar estado incorreto. | Timeout de 10 segundos, retry explícito, estados distinguíveis e descarte por identificador de requisição. |
 | Dados parciais podem parecer completos ou precisos. | Representar ausências como `null`, exibir indisponibilidade e não inferir valores; códigos de condição sem mapeamento também ficam indisponíveis. |
 | Converter sempre a resposta Celsius mantém modelo simples, mas adiciona conversão local. | Manter precisão de origem em Celsius e arredondar apenas na exibição; evita chamadas adicionais e dependência de payload em Fahrenheit. |
 | Clientes chamam a API diretamente, sem backend. | Adequado ao escopo sem autenticação/persistência; a aplicação não controla disponibilidade/limites e deve documentar os dados enviados por HTTPS e a atribuição. |
-| Logs do provedor de hospedagem podem conter dados técnicos. | Não adicionar analytics nem registrar termos/localidades pela aplicação; documentar provedor, região, retenção e responsável por incidentes antes da publicação. |
+| A consulta e a localidade selecionada são transmitidas à Open-Meteo; logs do provedor de hospedagem podem conter dados técnicos. | Transmitir por HTTPS somente os dados necessários à busca e à consulta meteorológica; não adicionar analytics nem registrar termos/localidades pela aplicação. Documentar finalidades, provedor de hospedagem, região, retenção dos logs e responsável por incidentes antes da publicação. |
 | Metas de usabilidade, performance, disponibilidade, acessibilidade e compatibilidade exigem validação externa ao teste unitário. | Registrar evidências e condições de medição conforme NFR-01 a NFR-08 da especificação; não declarar conformidade sem a validação correspondente. |
 
 Fora do escopo desta versão: GPS, contas, favoritos, histórico, persistência
