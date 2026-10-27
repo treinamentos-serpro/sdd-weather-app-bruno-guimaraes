@@ -299,7 +299,11 @@ requisito funcional sem tarefa correspondente.
   - As opções são operáveis por teclado; loading, erro e vazio têm roles e
     mensagens acessíveis distintas, verificáveis por testes de componente.
 - **Dependências:** T-04, T-19.
-- **Arquivos prováveis:** `src/components/CitySearch.tsx`.
+- **Arquivos prováveis:** `src/components/CitySearch.tsx`,
+  `src/components/SearchBar.tsx`.
+- **Entrega parcial:** `SearchBar` implementa campo acessível, envio explícito
+  com trim, orientação para consulta em branco e bloqueio por `disabled`.
+  Seleção de opções e estados de rede continuam pendentes nesta tarefa.
 - **Tipo:** UI.
 - **Rastreabilidade:** FR-01, FR-05, FR-06; AC-01.1 a AC-01.7, AC-05.2,
   AC-06.1, AC-06.3.
@@ -540,7 +544,11 @@ requisito funcional sem tarefa correspondente.
   - A falha apresenta a ação de retry; o resultado vazio mantém disponível uma
     nova pesquisa.
 - **Dependências:** T-21.
-- **Arquivos prováveis:** `tests/components/CitySearch.test.tsx`.
+- **Arquivos prováveis:** `tests/components/CitySearch.test.tsx`,
+  `tests/unit/SearchBar.test.tsx`.
+- **Cobertura parcial:** testes da barra verificam label/região de busca,
+  envio por botão/Enter, trim sem remover acentos ou pontuação, consulta em
+  branco, correção, desabilitação e IDs únicos por instância.
 - **Tipo:** Test.
 - **Rastreabilidade:** AC-01.1 a AC-01.7, AC-05.2, AC-06.1, AC-06.3.
 

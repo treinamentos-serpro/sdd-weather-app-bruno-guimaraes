@@ -67,6 +67,7 @@ src/
   main.tsx
   components/
     CitySearch.tsx        # Busca e seleção acessível de localidades
+    SearchBar.tsx         # Campo e envio explícito da consulta
     CityResults.tsx       # Condições atuais, cinco dias e atribuição
     UnitToggle.tsx        # Controle Celsius/Fahrenheit
   hooks/
@@ -117,6 +118,14 @@ alterações de API ficam nos serviços/normalizadores, mudanças de fluxo no ho
 e ajustes visuais nos componentes. Manter componentes pequenos; adicionar
 arquivos apenas quando houver responsabilidade clara, reutilização ou valor de
 teste independente.
+
+`SearchBar` implementa o campo de T-21 com `onSearch(city: string)` e
+`disabled?: boolean` (padrão `false`). O formulário tem `role="search"`, label
+associado e envio por botão ou Enter. Consultas em branco exibem orientação
+acessível sem chamar `onSearch`; consultas válidas removem apenas espaços nas
+extremidades. `disabled` bloqueia edição e envio. O componente usa o tema
+glassmorphism e não consulta serviços; opções e estados de rede permanecem
+responsabilidade da composição de busca.
 
 ## Data Model
 
