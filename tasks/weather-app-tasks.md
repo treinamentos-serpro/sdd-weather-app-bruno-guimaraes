@@ -362,9 +362,11 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 
 ### T-12 — Testar conversão e formatação de temperatura
 
-- **Descrição:** Validar fórmulas, arredondamento, precisão canônica e ausência
-  de deriva ao alternar unidades.
+- **Descrição:** Criar testes unitários das funções puras de conversão e
+  formatação de temperatura, validando fórmulas, arredondamento, precisão
+  canônica e ausência de deriva ao alternar unidades.
 - **Critérios de aceite:**
+  - Testes Vitest exercitam as funções de conversão sem interface ou rede.
   - Os testes incluem `0 °C → 32 °F`, `100 °C → 212 °F` e `−40 °C → −40 °F`.
   - Empates positivos e negativos arredondam para longe de zero.
   - Alternar unidades repetidamente sempre parte do valor original, sem
@@ -393,10 +395,10 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 ### T-16 — Testar o serviço de geocoding
 
 - **Descrição:** Testar parâmetros, codificação, normalização, estados vazios e
-  classificação de falhas usando `fetch` mockado.
+  classificação de falhas usando `fetch` mockado, sem tráfego de rede real.
 - **Critérios de aceite:**
   - Testes verificam acentos, espaços internos, pontuação, parâmetros e ordem
-    dos resultados sem tráfego de rede real.
+    dos resultados por meio de chamadas interceptadas ao `fetch`.
   - Sucesso, lista vazia, erro HTTP/API/rede, JSON inválido e timeout são
     cobertos.
   - Timers são controlados e limpos ao final de cada teste.
@@ -408,10 +410,10 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 ### T-18 — Testar o serviço de previsão
 
 - **Descrição:** Verificar contrato HTTP, coordenadas, parâmetros, normalização
-  e erros do serviço de forecast com respostas controladas.
+  e erros do serviço de forecast com `fetch` mockado, sem tráfego de rede real.
 - **Critérios de aceite:**
-  - Testes confirmam as coordenadas selecionadas e todos os parâmetros
-    exigidos, sem usar a API real.
+  - Testes confirmam, por meio do `fetch` mockado, as coordenadas selecionadas
+    e todos os parâmetros exigidos, sem usar a API real.
   - Sucesso completo/parcial, falhas HTTP/API/rede, JSON inválido, resposta
     incompatível e timeout são cobertos.
   - Timers são liberados após sucesso e falha.
@@ -438,13 +440,16 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 
 ### T-22 — Testar a interface de busca
 
-- **Descrição:** Testar a interação da busca e a renderização dos estados por
-  comportamento acessível.
+- **Descrição:** Testar o componente de busca com Testing Library, cobrindo
+  interação e estados loading, erro e vazio por comportamento acessível.
 - **Critérios de aceite:**
   - Testes com Testing Library verificam envio por botão/Enter, seleção por
     teclado, validação vazia e preservação da ordem/contexto das opções.
-  - Loading, vazio e erro são consultáveis por roles/labels e não são
+  - Loading, erro de busca e vazio por ausência de correspondências são
+    consultáveis por roles/labels, encerram o loading ao concluir e não são
     confundidos entre si.
+  - A falha apresenta a ação de retry; o resultado vazio mantém disponível uma
+    nova pesquisa.
 - **Dependências:** T-21.
 - **Arquivos prováveis:** `tests/components/CitySearch.test.tsx`.
 - **Tipo:** Test.
@@ -452,11 +457,17 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 
 ### T-25 — Testar resultados e controle de unidade
 
-- **Descrição:** Validar renderização de resultados completos/parciais,
-  atualidade, indisponibilidades, atribuição e alternância de unidade.
+- **Descrição:** Testar os componentes de resultados e unidade com Testing
+  Library, incluindo loading e erro da previsão, além de resultados
+  completos/parciais, atualidade, indisponibilidades, atribuição e alternância.
 - **Critérios de aceite:**
   - Testes verificam cidade, condições, cinco datas, campos indisponíveis e
     atribuição da fonte usando consultas acessíveis.
+  - Loading da previsão é perceptível e a falha apresenta mensagem pt-BR,
+    encerra o loading e oferece retry.
+  - Não se espera estado vazio meteorológico: resposta sem dados utilizáveis é
+    erro `invalid-response`; dados parcialmente utilizáveis são sucesso com
+    campos indisponíveis.
   - O estado de atualidade respeita dados válidos/indisponíveis sem inventar
     status.
   - Celsius/Fahrenheit atualiza todas as temperaturas sem chamada de serviço
@@ -487,7 +498,7 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 ### T-28 — Cobrir jornada principal e busca vazia em E2E
 
 - **Descrição:** Automatizar no Playwright a jornada principal e a validação de
-  busca, usando fixtures determinísticas interceptadas.
+  busca em viewport desktop, usando fixtures determinísticas interceptadas.
 - **Critérios de aceite:**
   - Em Chromium, o teste pesquisa, seleciona cidade, visualiza condições e
     cinco dias e alterna °C/°F.
@@ -533,11 +544,14 @@ requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 
 ### T-31 — Validar a jornada em viewport mobile
 
-- **Descrição:** Automatizar a jornada em viewports móveis e verificar os
-  estados visuais principais.
+- **Descrição:** Reexecutar em E2E a jornada principal de busca, seleção,
+  previsão e alternância de unidade em viewports móveis, verificando também os
+  estados loading, erro e vazio.
 - **Critérios de aceite:**
-  - A jornada é executada em 320 px e em viewport representativo de 390 × 844,
-    sem rolagem horizontal nos estados de loading, erro, vazio e sucesso.
+  - Com fixtures interceptadas, a jornada principal completa e os cenários de
+    loading, erro e vazio são executados em 320 px e em viewport representativo
+    de 390 × 844.
+  - Não há rolagem horizontal nos estados de loading, erro, vazio e sucesso.
   - Os cinco dias e controles permanecem disponíveis e utilizáveis no mobile.
 - **Dependências:** T-27, T-28.
 - **Arquivos prováveis:** `tests/e2e/weather-mobile.spec.ts`.
