@@ -3,10 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../../src/App';
 import { mockWeatherData } from '../../src/mocks/weather';
-import { getWeather, searchCities } from '../../src/services/weatherService';
+import { getWeather, searchCities, WeatherServiceError } from '../../src/services/weatherService';
 import type { WeatherData } from '../../src/types/weather';
 
-vi.mock('../../src/services/weatherService', () => ({
+vi.mock('../../src/services/weatherService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/services/weatherService')>()),
   searchCities: vi.fn(),
   getWeather: vi.fn(),
 }));
@@ -114,9 +115,13 @@ describe('App', () => {
     'weather',
   ] as const)('exibe o erro de %s e repete somente a operação que falhou ao tentar novamente', async (operation) => {
     if (operation === 'search') {
-      vi.mocked(searchCities).mockRejectedValueOnce(new Error('Falha ao buscar cidades.'));
+      vi.mocked(searchCities).mockRejectedValueOnce(
+        new WeatherServiceError('Falha ao buscar cidades.', { kind: 'network' }),
+      );
     } else {
-      vi.mocked(getWeather).mockRejectedValueOnce(new Error('Falha ao consultar previsão.'));
+      vi.mocked(getWeather).mockRejectedValueOnce(
+        new WeatherServiceError('Falha ao consultar previsão.', { kind: 'timeout' }),
+      );
     }
     const user = userEvent.setup();
     render(<App />);

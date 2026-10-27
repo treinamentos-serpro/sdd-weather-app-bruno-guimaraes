@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getWeather, searchCities } from '../services/weatherService';
+import {
+  getWeather,
+  searchCities,
+  type WeatherErrorKind,
+  WeatherServiceError,
+} from '../services/weatherService';
 import type { City, WeatherData } from '../types/weather';
 
 export type WeatherStatus = 'idle' | 'loading' | 'success' | 'error' | 'empty';
@@ -9,8 +14,12 @@ interface WeatherState {
   data: WeatherData | null;
   cities: City[];
   error: string | null;
+  errorKind: WeatherErrorKind | 'unknown' | null;
   query: string;
 }
+
+export const GENERIC_ERROR_MESSAGE =
+  'Não foi possível obter os dados meteorológicos. Tente novamente.';
 
 type Operation = { type: 'search'; name: string } | { type: 'weather'; city: City };
 
@@ -19,6 +28,7 @@ const initialState: WeatherState = {
   data: null,
   cities: [],
   error: null,
+  errorKind: null,
   query: '',
 };
 
@@ -44,6 +54,7 @@ export function useWeather() {
       status: 'loading',
       data: null,
       error: null,
+      errorKind: null,
       ...(operation.type === 'search' ? { query: operation.name, cities: [] } : {}),
     }));
 
@@ -69,13 +80,13 @@ export function useWeather() {
       setState((previous) => ({ ...previous, status: 'success', data }));
     } catch (error) {
       if (id !== requestId.current) return;
+      // Só mensagens do service são amigáveis; qualquer outra falha usa texto genérico.
+      const isServiceError = error instanceof WeatherServiceError;
       setState((previous) => ({
         ...previous,
         status: 'error',
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Não foi possível obter os dados meteorológicos.',
+        error: isServiceError ? error.message : GENERIC_ERROR_MESSAGE,
+        errorKind: isServiceError ? error.kind : 'unknown',
       }));
     } finally {
       if (id === requestId.current) pending.current = false;

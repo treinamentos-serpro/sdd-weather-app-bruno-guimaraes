@@ -154,12 +154,44 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     render(<App />);
 
     await searchSaoPaulo(user);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Falha de rede.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível carregar a previsão do tempo. Não foi possível conectar ao serviço de clima.',
+    );
 
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
 
-    expect(await screen.findByText('Erro ao buscar previsão (HTTP 503).')).toBeVisible();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'O serviço de clima está temporariamente indisponível.',
+    );
     expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeEnabled();
+  });
+
+  it('simula rede offline: comunica falta de conexão e recupera ao reconectar com retry', async () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+
+    await searchSaoPaulo(user);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível buscar a cidade. Você está sem conexão com a internet. Reconecte-se e tente novamente.',
+    );
+    expect(screen.queryByText('Nenhuma cidade encontrada')).not.toBeInTheDocument();
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
+
+    // Retry ainda offline mantém o erro e a ação disponíveis (AC-05.4).
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('sem conexão');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    onLine.mockReturnValue(true);
+    stubFetch([]);
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(await screen.findByRole('heading', { name: 'São Paulo' })).toBeVisible();
+    onLine.mockRestore();
   });
 
   it('encerra o loading com erro de timeout após 10 segundos (AC-05.5)', async () => {
@@ -173,7 +205,9 @@ describe('App integrado ao serviço (fetch stubado)', () => {
 
     await act(() => vi.advanceTimersByTimeAsync(10_000));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('A requisição demorou demais.');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Não foi possível carregar a previsão do tempo. O serviço de clima não respondeu em 10 segundos.',
+    );
     expect(screen.queryByText('Carregando...')).not.toBeInTheDocument();
     expect(screen.queryByText('Nenhuma cidade encontrada')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
@@ -275,8 +309,9 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     await searchSaoPaulo(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Erro ao buscar cidades (HTTP 500).',
+      'Não foi possível buscar a cidade. O serviço de clima está temporariamente indisponível.',
     );
+    expect(screen.getByRole('alert')).not.toHaveTextContent('boom');
     expect(screen.queryByText('Nenhuma cidade encontrada')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));

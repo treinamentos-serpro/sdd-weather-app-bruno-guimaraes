@@ -1,11 +1,82 @@
 import { getWeatherCondition } from '../lib/weatherCodes';
 import type { City, CurrentWeather, ForecastDay, WeatherData } from '../types/weather';
 
+export const REQUEST_TIMEOUT_MS = 10_000;
+
+export type WeatherErrorKind = 'network' | 'timeout' | 'http' | 'api' | 'invalid-response';
+
+type ServiceOperation = 'search' | 'weather';
+
+interface WeatherServiceErrorOptions {
+  kind: WeatherErrorKind;
+  status?: number | null;
+  /** Detalhe técnico para diagnóstico; nunca deve ser exibido ao usuário. */
+  detail?: string | null;
+}
+
+/** `message` é sempre amigável (pt-BR) e pode ser exibida diretamente na interface. */
 export class WeatherServiceError extends Error {
-  constructor(message: string) {
+  readonly kind: WeatherErrorKind;
+  readonly status: number | null;
+  readonly detail: string | null;
+
+  constructor(message: string, { kind, status = null, detail = null }: WeatherServiceErrorOptions) {
     super(message);
     this.name = 'WeatherServiceError';
+    this.kind = kind;
+    this.status = status;
+    this.detail = detail;
   }
+}
+
+const failurePrefix: Record<ServiceOperation, string> = {
+  search: 'Não foi possível buscar a cidade.',
+  weather: 'Não foi possível carregar a previsão do tempo.',
+};
+
+function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+function friendlyMessage(
+  operation: ServiceOperation,
+  kind: WeatherErrorKind,
+  status: number | null,
+): string {
+  const prefix = failurePrefix[operation];
+  switch (kind) {
+    case 'timeout':
+      return `${prefix} O serviço de clima não respondeu em ${REQUEST_TIMEOUT_MS / 1000} segundos. Verifique sua conexão e tente novamente.`;
+    case 'network':
+      return isOffline()
+        ? `${prefix} Você está sem conexão com a internet. Reconecte-se e tente novamente.`
+        : `${prefix} Não foi possível conectar ao serviço de clima. Verifique sua conexão e tente novamente.`;
+    case 'http':
+      if (status === 429) {
+        return `${prefix} Muitas consultas em pouco tempo. Aguarde alguns instantes e tente novamente.`;
+      }
+      if (status !== null && status >= 500) {
+        return `${prefix} O serviço de clima está temporariamente indisponível. Tente novamente em alguns instantes.`;
+      }
+      return `${prefix} O serviço de clima recusou a consulta. Tente novamente.`;
+    case 'api':
+      return `${prefix} O serviço de clima não conseguiu processar a consulta. Tente novamente.`;
+    case 'invalid-response':
+      return `${prefix} Os dados recebidos estão incompletos ou em formato inesperado. Tente novamente.`;
+  }
+}
+
+function serviceError(
+  operation: ServiceOperation,
+  kind: WeatherErrorKind,
+  detail: string,
+  status: number | null = null,
+): WeatherServiceError {
+  return new WeatherServiceError(friendlyMessage(operation, kind, status), {
+    kind,
+    status,
+    detail,
+  });
 }
 
 interface JsonResponse {
@@ -14,10 +85,13 @@ interface JsonResponse {
   invalidJson: boolean;
 }
 
-// O timeout de 10 s cobre a requisição inteira, inclusive a leitura do corpo (AC-05.5).
-async function fetchJsonWithTimeout(url: string): Promise<JsonResponse> {
+// O timeout cobre a requisição inteira, inclusive a leitura do corpo (AC-05.5).
+async function fetchJsonWithTimeout(
+  operation: ServiceOperation,
+  url: string,
+): Promise<JsonResponse> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(url, { signal: controller.signal });
@@ -29,12 +103,19 @@ async function fetchJsonWithTimeout(url: string): Promise<JsonResponse> {
     }
   } catch (error) {
     if (controller.signal.aborted || (isRecord(error) && error.name === 'AbortError')) {
-      throw new WeatherServiceError('A requisição demorou demais.');
+      throw serviceError(operation, 'timeout', `Timeout após ${REQUEST_TIMEOUT_MS} ms.`);
     }
-    throw new WeatherServiceError('Falha de rede.');
+    const cause = error instanceof Error ? error.message : String(error);
+    throw serviceError(operation, 'network', `Falha de rede: ${cause}`);
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function apiReason(data: unknown): string {
+  return isRecord(data) && typeof data.reason === 'string' && data.reason.trim()
+    ? ` ${data.reason.trim()}`
+    : '';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -53,7 +134,7 @@ function toCity(value: unknown): City {
     !Number.isFinite(value.longitude) ||
     Math.abs(value.longitude) > 180
   ) {
-    throw new WeatherServiceError('Resposta de geocoding inválida.');
+    throw serviceError('search', 'invalid-response', 'Resultado de geocoding inválido.');
   }
 
   return {
@@ -71,20 +152,29 @@ export async function searchCities(name: string): Promise<City[]> {
   if (!query) return [];
 
   const { response, data, invalidJson } = await fetchJsonWithTimeout(
+    'search',
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=pt&format=json`,
   );
   if (!response.ok) {
-    throw new WeatherServiceError(`Erro ao buscar cidades (HTTP ${response.status}).`);
+    throw serviceError(
+      'search',
+      'http',
+      `Geocoding HTTP ${response.status}.${apiReason(data)}`,
+      response.status,
+    );
   }
   if (invalidJson) {
-    throw new WeatherServiceError('Resposta de geocoding com JSON inválido.');
+    throw serviceError('search', 'invalid-response', 'Geocoding com JSON inválido.');
   }
-  if (!isRecord(data) || data.error === true) {
-    throw new WeatherServiceError('Resposta de geocoding inválida.');
+  if (isRecord(data) && data.error === true) {
+    throw serviceError('search', 'api', `Erro declarado pelo geocoding.${apiReason(data)}`);
+  }
+  if (!isRecord(data)) {
+    throw serviceError('search', 'invalid-response', 'Resposta de geocoding inválida.');
   }
   if (data.results === undefined) return [];
   if (!Array.isArray(data.results)) {
-    throw new WeatherServiceError('Resposta de geocoding inválida.');
+    throw serviceError('search', 'invalid-response', 'Resposta de geocoding inválida.');
   }
 
   return data.results.map(toCity);
@@ -128,28 +218,26 @@ function toSourceLocalTime(value: unknown): string | null {
 
 export async function getWeather(city: City): Promise<WeatherData> {
   const { response, data, invalidJson } = await fetchJsonWithTimeout(
+    'weather',
     `https://api.open-meteo.com/v1/forecast?latitude=${city.latitude}&longitude=${city.longitude}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,precipitation,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=mm&timezone=auto&forecast_days=5`,
   );
-  if (invalidJson) {
-    throw new WeatherServiceError(
-      response.ok
-        ? 'Resposta de previsão com JSON inválido.'
-        : `Erro ao buscar previsão (HTTP ${response.status}).`,
+  if (!response.ok) {
+    throw serviceError(
+      'weather',
+      'http',
+      `Previsão HTTP ${response.status}.${apiReason(data)}`,
+      response.status,
     );
   }
-  const reason =
-    isRecord(data) && typeof data.reason === 'string' && data.reason.trim()
-      ? ` ${data.reason.trim()}`
-      : '';
-  if (!response.ok) {
-    throw new WeatherServiceError(`Erro ao buscar previsão (HTTP ${response.status}).${reason}`);
+  if (invalidJson) {
+    throw serviceError('weather', 'invalid-response', 'Previsão com JSON inválido.');
   }
   if (isRecord(data) && data.error === true) {
-    throw new WeatherServiceError(`Erro informado pela API de previsão.${reason}`);
+    throw serviceError('weather', 'api', `Erro declarado pela previsão.${apiReason(data)}`);
   }
 
   if (!isRecord(data) || !isRecord(data.current) || !isRecord(data.daily)) {
-    throw new WeatherServiceError('Resposta de previsão incompleta ou inválida.');
+    throw serviceError('weather', 'invalid-response', 'Previsão incompleta ou inválida.');
   }
 
   const sourceLocalTime = toSourceLocalTime(data.current.time);
@@ -157,7 +245,7 @@ export async function getWeather(city: City): Promise<WeatherData> {
   const dailyDates: unknown[] = Array.isArray(daily.time) ? daily.time : [];
   const startDate = sourceLocalTime?.slice(0, 10) ?? toLocalDate(dailyDates[0]);
   if (startDate === null) {
-    throw new WeatherServiceError('Resposta de previsão sem data local válida.');
+    throw serviceError('weather', 'invalid-response', 'Previsão sem data local válida.');
   }
 
   const weatherCode = toWeatherCode(data.current.weather_code);
@@ -214,7 +302,7 @@ export async function getWeather(city: City): Promise<WeatherData> {
         day.precipitationProbabilityPercent !== null,
     )
   ) {
-    throw new WeatherServiceError('Resposta de previsão sem dados meteorológicos válidos.');
+    throw serviceError('weather', 'invalid-response', 'Previsão sem dados meteorológicos válidos.');
   }
 
   return {

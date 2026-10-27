@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import { expect, expectNoHorizontalOverflow, test } from './fixtures';
 
 const geocodingResponse = {
@@ -139,7 +139,10 @@ test.describe('Weather App — falha da API e resposta parcial', () => {
     await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
 
-    await expect(page.getByRole('alert')).toContainText('HTTP 503');
+    await expect(page.getByRole('alert')).toContainText(
+      'O serviço de clima está temporariamente indisponível.',
+    );
+    await expect(page.getByRole('alert')).not.toContainText('503');
     await expect(page.getByText('Nenhuma cidade encontrada')).toHaveCount(0);
     await page.getByRole('button', { name: 'Tentar novamente' }).click();
 
@@ -155,9 +158,40 @@ test.describe('Weather App — falha da API e resposta parcial', () => {
     await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
 
-    await expect(page.getByRole('alert')).toHaveText('Falha de rede.');
+    await expect(page.getByRole('alert')).toContainText(
+      'Não foi possível conectar ao serviço de clima.',
+    );
     await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Previsão de 5 dias' })).toHaveCount(0);
+  });
+
+  test('simula o navegador offline e recupera com retry ao reconectar', async ({
+    page,
+    context,
+  }) => {
+    // Mocks de `page.route` respondem mesmo com o contexto offline; por isso as
+    // rotas abortam como o navegador faria enquanto `offline` estiver ativo.
+    let offline = false;
+    const respond = (json: unknown) => (route: Route) =>
+      offline ? route.abort('internetdisconnected') : route.fulfill({ json });
+    await page.route('https://geocoding-api.open-meteo.com/**', respond(geocodingResponse));
+    await page.route('https://api.open-meteo.com/**', respond(forecastResponse));
+    await page.goto('/');
+    offline = true;
+    await context.setOffline(true);
+
+    await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+    await expect(page.getByRole('alert')).toContainText('Você está sem conexão com a internet.');
+    await expect(page.getByText('Nenhuma cidade encontrada')).toHaveCount(0);
+
+    offline = false;
+    await context.setOffline(false);
+    await page.getByRole('button', { name: 'Tentar novamente' }).click();
+
+    await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
   test('mantém os cinco dias e marca dados ausentes como Indisponível', async ({ page }) => {

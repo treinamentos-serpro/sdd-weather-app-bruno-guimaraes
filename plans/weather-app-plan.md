@@ -423,9 +423,10 @@ validação prévia de cobertura, licença, atribuição, limites e disponibilid
   usa o mesmo índice da data. Percentuais aceitam 0–100; vento e precipitação
   aceitam valores não negativos; pressão deve ser positiva. Valores não finitos,
   ausentes ou inválidos viram `null`, preservando zeros válidos.
-- **Erros de forecast:** JSON inválido resulta em `WeatherServiceError` em pt-BR;
-  erros HTTP preservam o status mesmo sem JSON válido. O `reason` textual de
-  erros HTTP/API é incluído na mensagem, quando disponível.
+- **Erros de forecast:** JSON inválido resulta em `WeatherServiceError` com
+  mensagem amigável em pt-BR; erros HTTP preservam o status (`status`) mesmo
+  sem JSON válido. O `reason` textual de erros HTTP/API fica em `detail` para
+  diagnóstico e não é exibido ao usuário.
 
 Referências oficiais: [Forecast API](https://open-meteo.com/en/docs) e
 [Geocoding API](https://open-meteo.com/en/docs/geocoding-api).
@@ -504,11 +505,22 @@ arredondados.
 No recorte atual, `searchCities` e `getWeather` compartilham o helper interno
 `fetchJsonWithTimeout` em `src/services/weatherService.ts`. Ele passa um
 `AbortSignal` ao `fetch` e aborta após 10 segundos, cobrindo também a leitura
-do corpo JSON. Abortos viram `WeatherServiceError("A requisição demorou
-demais.")`; demais falhas do `fetch` ou da leitura do corpo viram
-`WeatherServiceError("Falha de rede.")`. JSON malformado é sinalizado ao
-serviço, sem lançar. O timer é sempre liberado em `finally`. Validação HTTP e
-da estrutura do JSON permanecem nos serviços.
+do corpo JSON (`REQUEST_TIMEOUT_MS`). Abortos viram `WeatherServiceError` de
+`kind: "timeout"`; demais falhas do `fetch` ou da leitura do corpo viram
+`kind: "network"`. JSON malformado é sinalizado ao serviço, sem lançar. O timer
+é sempre liberado em `finally`. Validação HTTP e da estrutura do JSON
+permanecem nos serviços.
+
+`WeatherServiceError` expõe `kind`, `status` (HTTP, quando houver) e `detail`
+(texto técnico apenas para diagnóstico). `message` é sempre amigável e pode ser
+exibida diretamente: começa pela operação que falhou ("Não foi possível buscar
+a cidade." ou "Não foi possível carregar a previsão do tempo.") e segue com a
+causa e a orientação — timeout de 10 segundos, sem conexão (quando
+`navigator.onLine === false`), falha de conexão, limite de consultas (429),
+serviço indisponível (5xx), consulta recusada, erro declarado pela API ou dados
+incompletos. `useWeather` exibe apenas mensagens de `WeatherServiceError`;
+qualquer outra falha usa uma mensagem genérica (`GENERIC_ERROR_MESSAGE`) e
+`errorKind: "unknown"`.
 
 - Validar antes de enviar: consulta vazia/composta por espaços gera mensagem
   acessível e nenhuma chamada.

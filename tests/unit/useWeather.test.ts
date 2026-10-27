@@ -1,11 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useWeather } from '../../src/hooks/useWeather';
+import { GENERIC_ERROR_MESSAGE, useWeather } from '../../src/hooks/useWeather';
 import { mockWeatherData } from '../../src/mocks/weather';
-import { getWeather, searchCities } from '../../src/services/weatherService';
+import { getWeather, searchCities, WeatherServiceError } from '../../src/services/weatherService';
 import type { City, WeatherData } from '../../src/types/weather';
 
-vi.mock('../../src/services/weatherService', () => ({
+vi.mock('../../src/services/weatherService', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/services/weatherService')>()),
   searchCities: vi.fn(),
   getWeather: vi.fn(),
 }));
@@ -13,6 +14,9 @@ vi.mock('../../src/services/weatherService', () => ({
 const city = mockWeatherData.city;
 const otherCity: City = { ...city, id: 1, name: 'Lisboa', latitude: 38.72, longitude: -9.14 };
 const otherWeather: WeatherData = { ...mockWeatherData, city: otherCity };
+
+const networkError = () => new WeatherServiceError('Sem conexão.', { kind: 'network' });
+const timeoutError = () => new WeatherServiceError('Tempo esgotado.', { kind: 'timeout' });
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -101,6 +105,7 @@ describe('useWeather', () => {
     await act(() => result.current.search('São Paulo'));
     expect(result.current.status).toBe('success');
     expect(result.current.error).toBeNull();
+    expect(result.current.errorKind).toBeNull();
   });
 
   it('limpa dados anteriores e termina em empty quando não há cidades', async () => {
@@ -141,13 +146,14 @@ describe('useWeather', () => {
   });
 
   it('exibe falha de busca e retry repete a consulta normalizada', async () => {
-    vi.mocked(searchCities).mockRejectedValueOnce(new Error('Falha de rede.'));
+    vi.mocked(searchCities).mockRejectedValueOnce(networkError());
     const { result } = renderHook(() => useWeather());
 
     await act(() => result.current.search('  São Paulo '));
     expect(result.current).toMatchObject({
       status: 'error',
-      error: 'Falha de rede.',
+      error: 'Sem conexão.',
+      errorKind: 'network',
       data: null,
     });
     expect(getWeather).not.toHaveBeenCalled();
@@ -160,8 +166,8 @@ describe('useWeather', () => {
 
   it('retry de previsão automática repete somente a previsão e pode falhar novamente', async () => {
     vi.mocked(getWeather)
-      .mockRejectedValueOnce(new Error('Falha de rede.'))
-      .mockRejectedValueOnce(new Error('A requisição demorou demais.'));
+      .mockRejectedValueOnce(networkError())
+      .mockRejectedValueOnce(timeoutError());
     const { result } = renderHook(() => useWeather());
 
     await act(() => result.current.search('São Paulo'));
@@ -169,7 +175,7 @@ describe('useWeather', () => {
     expect(result.current.cities).toEqual([city, otherCity]);
     await act(() => result.current.retry());
     expect(result.current.status).toBe('error');
-    expect(result.current.error).toBe('A requisição demorou demais.');
+    expect(result.current).toMatchObject({ error: 'Tempo esgotado.', errorKind: 'timeout' });
     await act(() => result.current.retry());
 
     expect(searchCities).toHaveBeenCalledTimes(1);
@@ -190,7 +196,7 @@ describe('useWeather', () => {
     expect(result.current.status).toBe('loading');
     expect(result.current.data).toBeNull();
     await act(async () => {
-      weather.reject(new Error('Falha de rede.'));
+      weather.reject(networkError());
       await request;
     });
     await act(() => result.current.retry());
@@ -200,17 +206,26 @@ describe('useWeather', () => {
     expect(searchCities).toHaveBeenCalledTimes(1);
   });
 
-  it('expõe uma mensagem para rejeições que não sejam Error', async () => {
-    vi.mocked(searchCities).mockRejectedValue(null);
+  it.each([
+    ['rejeições que não sejam Error', null],
+    [
+      'erros inesperados com detalhes técnicos',
+      new TypeError("Cannot read properties of undefined (reading 'x')"),
+    ],
+  ])('expõe mensagem genérica amigável para %s', async (_label, rejection) => {
+    vi.mocked(searchCities).mockRejectedValue(rejection);
     const { result } = renderHook(() => useWeather());
     await act(() => result.current.search('São Paulo'));
-    expect(result.current.status).toBe('error');
-    expect(result.current.error).toBe('Não foi possível obter os dados meteorológicos.');
+    expect(result.current).toMatchObject({
+      status: 'error',
+      error: GENERIC_ERROR_MESSAGE,
+      errorKind: 'unknown',
+    });
   });
 
   it('não duplica a operação quando retry é acionado durante loading', async () => {
     const weather = deferred<WeatherData>();
-    vi.mocked(getWeather).mockRejectedValueOnce(new Error('Falha de rede.'));
+    vi.mocked(getWeather).mockRejectedValueOnce(networkError());
     const { result } = renderHook(() => useWeather());
     await act(() => result.current.selectCity(city));
     vi.mocked(getWeather).mockReturnValue(weather.promise);

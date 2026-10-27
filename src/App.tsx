@@ -6,7 +6,7 @@ import EmptyState from './components/states/EmptyState';
 import ErrorState from './components/states/ErrorState';
 import LoadingState from './components/states/LoadingState';
 import UnitToggle from './components/UnitToggle';
-import useWeather from './hooks/useWeather';
+import useWeather, { GENERIC_ERROR_MESSAGE } from './hooks/useWeather';
 import type { Unit } from './types/weather';
 
 export default function App() {
@@ -89,10 +89,7 @@ export default function App() {
             />
           )}
           {status === 'error' && (
-            <ErrorState
-              message={error ?? 'Não foi possível obter os dados meteorológicos.'}
-              onRetry={handleRetry}
-            />
+            <ErrorState message={error ?? GENERIC_ERROR_MESSAGE} onRetry={handleRetry} />
           )}
           {status === 'success' && data && (
             <>

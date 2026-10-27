@@ -22,26 +22,39 @@ function mockResponse(body: unknown, status = 200) {
   return fetchMock;
 }
 
+const SEARCH_FAILURE = 'Não foi possível buscar a cidade.';
+const WEATHER_FAILURE = 'Não foi possível carregar a previsão do tempo.';
+const TIMEOUT_HINT = 'O serviço de clima não respondeu em 10 segundos.';
+const NETWORK_HINT = 'Não foi possível conectar ao serviço de clima.';
+const OFFLINE_HINT = 'Você está sem conexão com a internet.';
+
+function goOffline() {
+  vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+}
+
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe.each([
   {
     operation: 'searchCities',
+    prefix: SEARCH_FAILURE,
     request: () => searchCities('Lisboa'),
     body: { results: [cityResult] },
   },
   {
     operation: 'getWeather',
+    prefix: WEATHER_FAILURE,
     request: () => getWeather({ ...cityResult, region: cityResult.admin1 }),
     body: {
       current: { time: '2026-12-30T12:00', temperature_2m: 20 },
       daily: {},
     },
   },
-])('$operation: transporte', ({ request, body }) => {
+])('$operation: transporte', ({ request, body, prefix }) => {
   it('limpa o timer após sucesso e não aborta a requisição concluída', async () => {
     vi.useFakeTimers();
     const fetchMock = mockResponse(body);
@@ -56,14 +69,38 @@ describe.each([
   });
 
   it.each([
-    [new DOMException('Aborted', 'AbortError'), 'A requisição demorou demais.'],
-    [new TypeError('Failed to fetch'), 'Falha de rede.'],
-  ])('converte %s em WeatherServiceError e limpa o timer', async (error, message) => {
+    [new DOMException('Aborted', 'AbortError'), 'timeout', TIMEOUT_HINT],
+    [new TypeError('Failed to fetch'), 'network', NETWORK_HINT],
+  ])('converte %s em WeatherServiceError e limpa o timer', async (error, kind, hint) => {
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
 
-    await expect(request()).rejects.toThrow(new WeatherServiceError(message));
+    const rejection = await request().catch((caught: unknown) => caught);
+
+    expect(rejection).toBeInstanceOf(WeatherServiceError);
+    expect(rejection).toMatchObject({ kind, message: expect.stringContaining(prefix) });
+    expect((rejection as Error).message).toContain(hint);
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('informa que o dispositivo está offline quando o fetch falha sem conexão', async () => {
+    goOffline();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    await expect(request()).rejects.toMatchObject({
+      name: 'WeatherServiceError',
+      kind: 'network',
+      message: `${prefix} ${OFFLINE_HINT} Reconecte-se e tente novamente.`,
+    });
+  });
+
+  it('não expõe detalhes técnicos na mensagem, apenas em detail', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('ERR_INTERNET_DISCONNECTED')));
+
+    const rejection = (await request().catch((caught: unknown) => caught)) as WeatherServiceError;
+
+    expect(rejection.message).not.toContain('ERR_INTERNET_DISCONNECTED');
+    expect(rejection.detail).toContain('ERR_INTERNET_DISCONNECTED');
   });
 
   it('aborta somente ao completar 10 segundos e limpa o timer', async () => {
@@ -81,9 +118,10 @@ describe.each([
       }),
     );
 
-    const result = expect(request()).rejects.toThrow(
-      new WeatherServiceError('A requisição demorou demais.'),
-    );
+    const result = expect(request()).rejects.toMatchObject({
+      kind: 'timeout',
+      message: `${prefix} ${TIMEOUT_HINT} Verifique sua conexão e tente novamente.`,
+    });
 
     await vi.advanceTimersByTimeAsync(9_999);
     expect(signal?.aborted).toBe(false);
@@ -121,7 +159,8 @@ describe.each([
     );
     await vi.advanceTimersByTimeAsync(10_000);
 
-    expect(outcome).toEqual(new WeatherServiceError('A requisição demorou demais.'));
+    expect(outcome).toBeInstanceOf(WeatherServiceError);
+    expect(outcome).toMatchObject({ kind: 'timeout' });
   });
 
   it('converte erro de rede durante a leitura do corpo em WeatherServiceError', async () => {
@@ -139,7 +178,7 @@ describe.each([
       ),
     );
 
-    await expect(request()).rejects.toThrow(new WeatherServiceError('Falha de rede.'));
+    await expect(request()).rejects.toMatchObject({ kind: 'network' });
   });
 });
 
@@ -473,42 +512,53 @@ describe('searchCities', () => {
     ])('informa resposta incompleta quando %s está ausente', async (_field, body) => {
       mockResponse(body);
 
-      await expect(getWeather(city)).rejects.toThrow(
-        new WeatherServiceError('Resposta de previsão incompleta ou inválida.'),
-      );
+      await expect(getWeather(city)).rejects.toMatchObject({
+        kind: 'invalid-response',
+        message: `${WEATHER_FAILURE} Os dados recebidos estão incompletos ou em formato inesperado. Tente novamente.`,
+      });
     });
 
     it.each([400, 500])('lança WeatherServiceError para HTTP %i', async (status) => {
       mockResponse({}, status);
 
-      await expect(getWeather(city)).rejects.toThrow(WeatherServiceError);
+      const rejection = await getWeather(city).catch((caught: unknown) => caught);
+
+      expect(rejection).toBeInstanceOf(WeatherServiceError);
+      expect(rejection).toMatchObject({ kind: 'http', status });
     });
 
     it('converte falhas de rede em WeatherServiceError', async () => {
       const error = new TypeError('Falha de rede');
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
 
-      await expect(getWeather(city)).rejects.toThrow(new WeatherServiceError('Falha de rede.'));
+      await expect(getWeather(city)).rejects.toMatchObject({
+        kind: 'network',
+        message: expect.stringContaining(NETWORK_HINT),
+      });
     });
 
     it('normaliza JSON inválido sem produzir sucesso vazio', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('invalid json')));
 
-      await expect(getWeather(city)).rejects.toThrow(
-        new WeatherServiceError('Resposta de previsão com JSON inválido.'),
-      );
+      await expect(getWeather(city)).rejects.toMatchObject({ kind: 'invalid-response' });
     });
 
-    it.each([200, 400])('inclui o motivo declarado pela API para HTTP %i', async (status) => {
+    it.each([
+      [200, 'api'],
+      [400, 'http'],
+    ])('guarda o motivo da API em detail, fora da mensagem, para HTTP %i', async (status, kind) => {
       mockResponse({ error: true, reason: 'Invalid parameters' }, status);
 
-      await expect(getWeather(city)).rejects.toThrow(
-        new WeatherServiceError(
-          status === 200
-            ? 'Erro informado pela API de previsão. Invalid parameters'
-            : 'Erro ao buscar previsão (HTTP 400). Invalid parameters',
-        ),
-      );
+      const rejection = (await getWeather(city).catch(
+        (caught: unknown) => caught,
+      )) as WeatherServiceError;
+
+      expect(rejection).toMatchObject({
+        kind,
+        detail: expect.stringContaining('Invalid parameters'),
+      });
+      expect(rejection.message).toMatch(new RegExp(`^${WEATHER_FAILURE}`));
+      expect(rejection.message).not.toContain('Invalid parameters');
     });
 
     it('preserva o status HTTP quando o corpo não contém JSON válido', async () => {
@@ -517,9 +567,11 @@ describe('searchCities', () => {
         vi.fn().mockResolvedValue(new Response('<html>Bad Gateway</html>', { status: 502 })),
       );
 
-      await expect(getWeather(city)).rejects.toThrow(
-        new WeatherServiceError('Erro ao buscar previsão (HTTP 502).'),
-      );
+      await expect(getWeather(city)).rejects.toMatchObject({
+        kind: 'http',
+        status: 502,
+        message: `${WEATHER_FAILURE} O serviço de clima está temporariamente indisponível. Tente novamente em alguns instantes.`,
+      });
     });
 
     it('ancora os cinco dias na data local de current.time, não em daily.time[0]', async () => {
@@ -556,9 +608,10 @@ describe('searchCities', () => {
         daily: { ...forecastResponse().daily, time: ['2026-13-01', null] },
       });
 
-      await expect(getWeather(city)).rejects.toThrow(
-        new WeatherServiceError('Resposta de previsão sem data local válida.'),
-      );
+      await expect(getWeather(city)).rejects.toMatchObject({
+        kind: 'invalid-response',
+        detail: 'Previsão sem data local válida.',
+      });
     });
 
     it('rejeita quando só há dados válidos fora da janela de cinco dias', async () => {
@@ -573,9 +626,10 @@ describe('searchCities', () => {
         },
       });
 
-      await expect(getWeather(city)).rejects.toThrow(
-        new WeatherServiceError('Resposta de previsão sem dados meteorológicos válidos.'),
-      );
+      await expect(getWeather(city)).rejects.toMatchObject({
+        kind: 'invalid-response',
+        detail: 'Previsão sem dados meteorológicos válidos.',
+      });
     });
 
     it('aceita resposta em que só a temperatura atual é válida e marca o resto como ausente', async () => {
@@ -595,14 +649,17 @@ describe('searchCities', () => {
     });
 
     it.each([
-      [429, 'Too many requests'],
-      [503, 'Service unavailable'],
-    ])('trata limite/indisponibilidade HTTP %i como falha com motivo', async (status, reason) => {
+      [429, 'Too many requests', 'Muitas consultas em pouco tempo.'],
+      [503, 'Service unavailable', 'O serviço de clima está temporariamente indisponível.'],
+    ])('trata limite/indisponibilidade HTTP %i com mensagem amigável', async (status, reason, hint) => {
       mockResponse({ error: true, reason }, status);
 
-      await expect(getWeather(city)).rejects.toThrow(
-        new WeatherServiceError(`Erro ao buscar previsão (HTTP ${status}). ${reason}`),
-      );
+      await expect(getWeather(city)).rejects.toMatchObject({
+        kind: 'http',
+        status,
+        message: expect.stringContaining(hint),
+        detail: `Previsão HTTP ${status}. ${reason}`,
+      });
     });
   });
 
@@ -669,9 +726,11 @@ describe('searchCities', () => {
   it.each([400, 429, 500, 503])('lança WeatherServiceError para HTTP %i', async (status) => {
     mockResponse({ results: [cityResult] }, status);
 
-    await expect(searchCities('Lisboa')).rejects.toThrow(
-      new WeatherServiceError(`Erro ao buscar cidades (HTTP ${status}).`),
-    );
+    await expect(searchCities('Lisboa')).rejects.toMatchObject({
+      kind: 'http',
+      status,
+      message: expect.stringMatching(new RegExp(`^${SEARCH_FAILURE}`)),
+    });
   });
 
   it.each([
@@ -693,15 +752,13 @@ describe('searchCities', () => {
   it('converte JSON inválido em WeatherServiceError', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('invalid json')));
 
-    await expect(searchCities('Lisboa')).rejects.toThrow(
-      new WeatherServiceError('Resposta de geocoding com JSON inválido.'),
-    );
+    await expect(searchCities('Lisboa')).rejects.toMatchObject({ kind: 'invalid-response' });
   });
 
   it('propaga falhas de rede sem convertê-las em resultado vazio', async () => {
     const error = new TypeError('Falha de rede');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
 
-    await expect(searchCities('Lisboa')).rejects.toThrow(new WeatherServiceError('Falha de rede.'));
+    await expect(searchCities('Lisboa')).rejects.toMatchObject({ kind: 'network' });
   });
 });
