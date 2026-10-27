@@ -4,7 +4,7 @@
 
 A empresa solicitou uma aplicação para que usuários consultem informações meteorológicas de cidades. A experiência deve permitir localizar uma cidade, consultar as condições atuais e a previsão para os próximos cinco dias, escolher a unidade de temperatura e acessar o serviço por dispositivos móveis.
 
-Este documento registra o entendimento inicial do briefing. Fonte de dados, público-alvo, critérios de desempenho e detalhes de interação ainda precisam ser confirmados.
+Este documento registra o entendimento inicial do briefing. A fonte de dados está definida nas decisões abaixo; público-alvo, critérios de desempenho e detalhes de interação ainda precisam ser confirmados.
 
 ## Personas iniciais (hipóteses)
 
@@ -168,7 +168,15 @@ As perguntas abaixo detalham as decisões ainda necessárias. O impacto descreve
 
 ### Decisões prioritárias
 
-Antes de fechar o escopo, priorizar a definição do público e objetivo do produto, plataforma, fonte e licença dos dados, conteúdo e granularidade da previsão, busca e desambiguação, e comportamento diante de dados ausentes ou desatualizados. Essas decisões condicionam boa parte da experiência, da arquitetura e dos critérios de aceite.
+Permanecem prioritárias a definição do público e objetivo do produto, plataforma, conteúdo e granularidade da previsão, busca e desambiguação, e comportamento diante de dados ausentes ou desatualizados. Também devem ser confirmadas a cobertura e as condições de uso da fonte escolhida. Essas decisões condicionam boa parte da experiência, da arquitetura e dos critérios de aceite.
+
+## Decisões
+
+- **Fonte de dados: Open-Meteo, sem API key.** A escolha evita exigir uma chave de API para consultar os dados meteorológicos. Resolve a pergunta 10 sobre qual fonte será usada; cobertura e condições de uso da fonte ainda devem ser verificadas.
+- **Previsão de cinco dias: hoje mais os quatro dias seguintes.** Essa definição torna explícito o período coberto pela previsão. Resolve a pergunta 12 sobre o significado de “cinco dias”; a granularidade e a regra de agrupamento por data local ainda precisam ser definidas.
+- **Unidade padrão: Celsius.** A unidade padrão foi escolhida para orientar a primeira exibição das temperaturas. Resolve a pergunta 19 quanto à unidade inicial; a forma de armazenar preferências continua em aberto.
+- **Sem autenticação e sem persistência de servidor.** A consulta não exigirá conta, e o servidor não armazenará dados persistentes do usuário. Resolve a pergunta 26 quanto a contas, sincronização entre dispositivos e armazenamento no servidor; persistência local e recursos como favoritos continuam em aberto.
+- **Idioma da UI: pt-BR.** A interface será apresentada em português do Brasil, mantendo idioma e formatos familiares ao público definido para esta versão. Resolve a pergunta 21 quanto ao idioma da interface; suporte a outros idiomas e a regra para selecionar idioma ainda não foram definidos.
 
 ## Suposições
 
@@ -177,4 +185,4 @@ Antes de fechar o escopo, priorizar a definição do público e objetivo do prod
 - Celsius e Fahrenheit se aplicam às temperaturas; outras unidades não estão definidas no briefing.
 - A previsão é associada à cidade selecionada e deve respeitar seu fuso horário.
 - O suporte a dispositivos móveis será atendido inicialmente por uma interface web responsiva; desenvolvimento de aplicativo nativo não está implícito.
-- Não há requisitos definidos para autenticação, contas, cidades favoritas ou armazenamento de preferências.
+- Autenticação e persistência de servidor estão fora do escopo; não há requisitos definidos para cidades favoritas ou armazenamento local de preferências.
