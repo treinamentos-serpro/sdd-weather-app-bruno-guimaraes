@@ -14,10 +14,13 @@ Crie `tasks/weather-app-tasks.md`. Para cada tarefa, inclua:
 - **ID** (ex.: `T-01`)
 - **Título** acionável
 - **Descrição** curta
-- **Critérios de aceite** verificáveis
+- **Critérios de aceite** objetivos, observáveis e verificáveis
 - **Dependências** (IDs de outras tarefas)
 - **Arquivos** prováveis a criar/editar
 - **Tipo** (UI / Data / Test / Infra)
+- **Rastreabilidade** para IDs específicos de FR, AC ou NFR da spec; quando
+  não houver vínculo direto, indicar que a tarefa é habilitadora técnica e
+  apontar a seção pertinente do plano.
 
 Organize por entrega e ordene por dependência.
 
@@ -26,3 +29,7 @@ Organize por entrega e ordene por dependência.
 - Cada tarefa deve ser pequena, independente e testável.
 - Inclua tarefas de teste explícitas.
 - Toda tarefa mapeia para pelo menos um requisito da spec.
+- Evite critérios subjetivos sem definição observável; use limiares da spec e
+  indique qual teste, inspeção ou evidência comprova cada resultado.
+- Não atribua rastreabilidade genérica a todos os requisitos quando a tarefa
+  apenas habilitar a implementação; declare essa relação como habilitadora.

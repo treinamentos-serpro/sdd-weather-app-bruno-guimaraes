@@ -6,6 +6,12 @@ agrupadas por entrega e ordenadas para que cada dependência apareça antes de
 sua tarefa dependente. Tarefas de validação pré-publicação não substituem
 testes automatizados nem autorizam declarar metas sem evidências.
 
+Cada critério de aceite deve descrever um resultado observável e verificável,
+com limiar ou condição explícita quando aplicável. A rastreabilidade de cada
+tarefa aponta para os IDs pertinentes de requisitos, critérios de aceite ou
+requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
+é identificada como habilitadora técnica e vinculada ao plano.
+
 ## Entrega 1 — Pré-condições e fundação
 
 ### T-01 — Validar uso da Open-Meteo e atribuição
@@ -14,7 +20,7 @@ testes automatizados nem autorizam declarar metas sem evidências.
   disponibilidade da Open-Meteo para o uso previsto antes de integrar a fonte.
 - **Critérios de aceite:**
   - As condições de uso aplicáveis às APIs de geocoding e previsão estão
-    verificadas em fontes oficiais.
+    verificadas em fontes oficiais, com links e data de consulta registrados.
   - O texto e o local exigidos para atribuição estão identificados para a tela
     de resultados.
   - Qualquer restrição impeditiva está registrada e bloqueia a integração até
@@ -31,24 +37,30 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Configurar o ponto de entrada React existente para montar
   `App`, aproveitando Vite e TypeScript.
 - **Critérios de aceite:**
-  - A aplicação monta `App` pelo ponto de entrada existente e inicia sem erro.
+  - `pnpm dev` inicia o servidor Vite sem falha e uma requisição à rota `/`
+    retorna HTTP 200.
+  - O ponto de entrada monta `App` no elemento raiz existente, sem erro de
+    execução no console durante a inicialização.
 - **Dependências:** Nenhuma.
 - **Arquivos prováveis:** `src/main.tsx`, `index.html`.
 - **Tipo:** Infra.
-- **Rastreabilidade:** FR-01 a FR-06.
+- **Rastreabilidade:** Habilitadora técnica para FR-01 a FR-06; estrutura de
+  execução prevista no plano.
 
 ### T-03 — Criar o shell e o tema base
 
 - **Descrição:** Definir a composição inicial de `App` e o estilo global dark
   glassmorphism sem introduzir outra biblioteca de UI.
 - **Critérios de aceite:**
-  - `App` apresenta o shell mínimo da aplicação com o tema global aplicado.
-  - A estrutura mantém as camadas previstas: `components`, `hooks`, `services`,
-    `lib` e `types`.
+  - `App` renderiza uma região principal e o CSS global aplica o tema escuro
+    definido no plano.
+  - As pastas `components`, `hooks`, `services`, `lib` e `types` existem, e
+    `package.json` não adiciona outra biblioteca de UI.
 - **Dependências:** T-02.
 - **Arquivos prováveis:** `src/App.tsx`, `src/index.css`.
 - **Tipo:** UI.
-- **Rastreabilidade:** FR-01 a FR-06; NFR-01.
+- **Rastreabilidade:** NFR-01; habilitadora técnica dos fluxos FR-01 a FR-06,
+  conforme estrutura do plano.
 
 ### T-04 — Definir os contratos compartilhados de domínio
 
@@ -136,8 +148,8 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Implementar a tabela de condições em português do Brasil,
   incluindo o comportamento para códigos desconhecidos.
 - **Critérios de aceite:**
-  - Todos os códigos WMO documentados pela Open-Meteo no momento da
-    implementação têm descrição pt-BR.
+  - Cada código WMO listado na documentação oficial consultada na
+    implementação possui uma descrição pt-BR no mapeador.
   - Código desconhecido ou não mapeado retorna descrição indisponível, sem
     inferir uma condição.
   - A função é pura e não altera o código meteorológico de origem.
@@ -151,8 +163,8 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Testar os códigos documentados e os casos desconhecidos do
   mapeador de condições.
 - **Critérios de aceite:**
-  - Há cobertura para todos os códigos WMO suportados e para códigos não
-    mapeados.
+  - Existe ao menos uma asserção para cada código WMO listado na documentação
+    oficial usada pelo mapeador e para um código não mapeado.
   - Códigos desconhecidos não recebem descrição inventada.
 - **Dependências:** T-09.
 - **Arquivos prováveis:** `tests/unit/weatherCode.test.ts`.
@@ -336,8 +348,8 @@ testes automatizados nem autorizam declarar metas sem evidências.
     branco exibe orientação sem solicitar busca.
   - Opções preservam ordem, exibem nome e contexto geográfico disponível e
     mostram coordenadas quando o contexto textual não distingue homônimos.
-  - As opções são operáveis por teclado; loading, erro e vazio são comunicados
-    perceptivelmente e com semântica acessível.
+  - As opções são operáveis por teclado; loading, erro e vazio têm roles e
+    mensagens acessíveis distintas, verificáveis por testes de componente.
 - **Dependências:** T-04, T-19.
 - **Arquivos prováveis:** `src/components/CitySearch.tsx`.
 - **Tipo:** UI.
@@ -416,10 +428,13 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Conectar hook, busca, resultados e unidade pelo componente
   raiz da aplicação.
 - **Critérios de aceite:**
-  - O fluxo pesquisar → selecionar → consultar → alternar unidade funciona
-    sem componentes chamarem serviços diretamente.
-  - Os estados de busca e previsão permanecem consistentes e acessíveis
-    durante carregamento, vazio, sucesso e erro.
+  - O fluxo de ponta a ponta pesquisa e seleciona uma cidade, consulta pelas
+    coordenadas dessa seleção e altera a unidade sem chamadas de serviço
+    originadas pelos componentes de apresentação.
+  - Busca e previsão expõem seus estados `loading`, `success` e `error`;
+    `empty` é usado somente para busca sem correspondências.
+  - A integração mantém disponíveis as ações de retry após falha e não associa
+    o resultado anterior à cidade recém-selecionada.
 - **Dependências:** T-03, T-19, T-21, T-23, T-24.
 - **Arquivos prováveis:** `src/App.tsx`.
 - **Tipo:** UI.
@@ -431,8 +446,9 @@ testes automatizados nem autorizam declarar metas sem evidências.
   previstos.
 - **Critérios de aceite:**
   - A aplicação não apresenta rolagem horizontal a partir de 320 px.
-  - O shell mantém busca, resultados e controle de unidade utilizáveis em
-    viewports móveis.
+  - Em larguras de 320 px e 390 px, busca, resultados e controle de unidade
+    permanecem visíveis dentro da viewport; o teste de aceite consegue
+    interagir com cada controle sem rolagem horizontal.
 - **Dependências:** T-26.
 - **Arquivos prováveis:** `src/App.tsx`, `src/index.css`.
 - **Tipo:** UI.
@@ -479,12 +495,13 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Automatizar a operação principal por teclado e conferir foco
   e nomes acessíveis dos controles.
 - **Critérios de aceite:**
-  - O fluxo principal é completável sem mouse e os controles têm foco e nomes
-    acessíveis verificáveis.
+  - O fluxo principal é completável somente por teclado; os testes verificam
+    foco visível e nomes acessíveis dos controles interativos.
 - **Dependências:** T-26, T-28.
 - **Arquivos prováveis:** `tests/e2e/weather-keyboard.spec.ts`.
 - **Tipo:** Test.
-- **Rastreabilidade:** NFR-05; AC-01.1, AC-04.1, AC-06.1 a AC-06.3.
+- **Rastreabilidade:** NFR-05, NFR-05.1; AC-01.1, AC-04.1, AC-06.1 a
+  AC-06.3.
 
 ### T-31 — Validar a jornada em viewport mobile
 
@@ -504,9 +521,11 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Auditar a busca, seus estados e a interação por teclado com
   verificação automatizada e revisão manual.
 - **Critérios de aceite:**
-  - Busca vazia, erro e opções são verificados quanto a nomes acessíveis,
-    foco, contraste e comunicação de estado.
-  - Violações nessa superfície são corrigidas e verificadas novamente.
+  - A auditoria automatizada e a revisão manual por teclado cobrem busca
+    vazia, erro e opções; cada verificação registra método e resultado.
+  - O relatório lista cada violação encontrada pelo critério WCAG 2.2 AA,
+    localização e evidência; após correção e repetição da auditoria, não há
+    violação aberta nessa superfície.
 - **Dependências:** T-22, T-30.
 - **Arquivos prováveis:** `src/components/CitySearch.tsx`,
   `tests/e2e/weather-keyboard.spec.ts`.
@@ -518,9 +537,12 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Auditar resultados e controle de unidade por inspeção manual
   com teclado e leitor de tela.
 - **Critérios de aceite:**
-  - Resultados, campos indisponíveis e controle de unidade são verificados
-    quanto a nomes acessíveis, foco, contraste e comunicação de estados.
-  - Violações nessa superfície são corrigidas e verificadas novamente.
+  - A revisão manual por teclado e leitor de tela cobre resultados, campos
+    indisponíveis e controle de unidade; cada verificação registra método e
+    resultado.
+  - O relatório lista cada violação encontrada pelo critério WCAG 2.2 AA,
+    localização e evidência; após correção e nova revisão, não há violação
+    aberta nessa superfície.
 - **Dependências:** T-25, T-26.
 - **Arquivos prováveis:** `src/components/CityResults.tsx`,
   `src/components/UnitToggle.tsx`.
@@ -532,9 +554,10 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Executar aceite separado nas duas versões estáveis mais
   recentes de Chrome, Edge, Firefox e Safari, incluindo Safari em macOS e iOS.
 - **Critérios de aceite:**
-  - Os fluxos principais e estados da interface são verificados em cada
-    navegador/plataforma exigido.
-  - Evidências registram navegador, versão, sistema operacional e viewport.
+  - Uma matriz registra a execução dos fluxos principais e estados em cada
+    navegador, versão estável e plataforma exigidos pela NFR-06.
+  - Cada evidência registra navegador, versão, sistema operacional, viewport
+    e resultado aprovado/reprovado.
   - Emulação mobile ou WebKit isoladamente não é usada como substituto para
     Safari/iOS.
 - **Dependências:** T-28, T-30, T-31.
@@ -557,7 +580,8 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Arquivos prováveis:** `src/services/geocodingService.ts`,
   `plans/weather-app-plan.md`.
 - **Tipo:** Test.
-- **Rastreabilidade:** FR-01; NFR-03, NFR-04.
+- **Rastreabilidade:** FR-01; AC-01.4, AC-01.6; pré-condição de validação da
+  fonte em Open Questions da spec.
 
 ### T-36 — Verificar previsão real com a Open-Meteo
 
@@ -573,7 +597,8 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Arquivos prováveis:** `src/services/weatherService.ts`,
   `plans/weather-app-plan.md`.
 - **Tipo:** Test.
-- **Rastreabilidade:** FR-02, FR-03; NFR-03, NFR-04.
+- **Rastreabilidade:** FR-02, FR-03; AC-02.1, AC-03.1; pré-condição de
+  validação da fonte em Open Questions da spec.
 
 ### T-37 — Documentar o tratamento de dados e privacidade
 
@@ -582,9 +607,9 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Critérios de aceite:**
   - A documentação identifica dados enviados por HTTPS à Open-Meteo e sua
     finalidade, sem analytics nem armazenamento de buscas pela aplicação.
-  - Provedor/região de hospedagem, logs técnicos mínimos, retenção e
-    responsável por incidentes estão documentados ou explicitamente pendentes
-    antes de publicar.
+  - Provedor/região de hospedagem, logs técnicos mínimos, prazo de retenção e
+    responsável por incidentes estão documentados antes da publicação;
+    qualquer item pendente bloqueia a publicação.
   - A solução não introduz GPS, contas, histórico, persistência de consultas
     ou persistência de preferências.
 - **Dependências:** T-26.
@@ -597,8 +622,11 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Reunir evidências de usabilidade por meio de teste moderado
   antes da publicação.
 - **Critérios de aceite:**
-  - É realizado teste moderado com ao menos cinco participantes representativos
-    e registrados resultados para a meta de quatro conclusões sem ajuda.
+  - É realizado teste moderado com pelo menos cinco participantes cuja
+    representatividade foi validada e registrada antes da sessão.
+  - Os resultados registram, por participante, conclusão sem ajuda das três
+    tarefas da NFR-02; a meta é atingida somente se pelo menos quatro
+    participantes completarem todas as tarefas.
   - Nenhuma meta é declarada cumprida sem a evidência correspondente.
 - **Dependências:** T-28.
 - **Arquivos prováveis:** `README.md`.
@@ -610,8 +638,12 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Medir separadamente p95 de busca e previsão antes da
   publicação, distinguindo aplicação e fonte.
 - **Critérios de aceite:**
-  - Em janela mensal, p95 de busca e previsão é medido até a exibição do
-    resultado, com ambiente, rede e amostras documentados.
+  - Em janela mensal, p95 de buscas e previsões concluídas com sucesso é medido
+    do envio à exibição do resultado, com ambiente, rede, população e volume de
+    amostras documentados.
+  - Busca e previsão reportam p95 de ponta a ponta e discriminam os tempos da
+    aplicação e da fonte; cada p95 de ponta a ponta é comparado com a meta de
+    até 3 segundos da NFR-03.
   - Nenhuma meta é declarada cumprida sem a evidência correspondente.
 - **Dependências:** T-28, T-35, T-36.
 - **Arquivos prováveis:** `plans/weather-app-plan.md`, `README.md`.
@@ -623,8 +655,10 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Descrição:** Reunir evidências de disponibilidade mensal separadas para
   aplicação e fonte de dados.
 - **Critérios de aceite:**
-  - Método, janela, exclusões e resultados de disponibilidade são documentados
-    para aplicação e fonte em separado.
+  - A disponibilidade é calculada em percentual mensal sobre o total de
+    minutos do mês, separadamente para carregamento da aplicação e resposta
+    utilizável da fonte; método, janela e exclusões são registrados.
+  - Cada percentual é comparado com a meta de 99,5% da NFR-04.
   - Nenhuma meta é declarada cumprida sem a evidência correspondente.
 - **Dependências:** T-35, T-36.
 - **Arquivos prováveis:** `plans/weather-app-plan.md`, `README.md`.
@@ -642,7 +676,8 @@ testes automatizados nem autorizam declarar metas sem evidências.
 - **Dependências:** T-20, T-22, T-25, T-26.
 - **Arquivos prováveis:** `package.json`.
 - **Tipo:** Test.
-- **Rastreabilidade:** FR-01 a FR-06.
+- **Rastreabilidade:** Habilitadora técnica para validar a implementação de
+  FR-01 a FR-06; checklist de entrega do plano.
 
 ### T-42 — Validar testes unitários e de componentes
 
