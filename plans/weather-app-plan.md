@@ -7,22 +7,35 @@ implementação; não são código final.
 
 ## Architecture
 
-Aplicação cliente sem backend próprio. A interface React coordena busca,
-seleção e apresentação; serviços isolam as chamadas HTTP e a normalização da
-Open-Meteo; funções puras formatam datas, descrições e temperaturas.
+Aplicação cliente sem backend próprio, organizada em camadas com dependências
+direcionadas da apresentação aos dados. Componentes React apresentam a
+interface e encaminham ações; hooks orquestram o estado e o fluxo assíncrono;
+serviços isolam chamadas HTTP à Open-Meteo; funções puras em `lib/` normalizam
+respostas e calculam valores de apresentação.
 
 ```text
-React UI
-  ├─ Search / city selection ──> geocodingService ──> Open-Meteo Geocoding
-  └─ Selected city ────────────> weatherService ────> Open-Meteo Forecast
-           │                           │
-           └──── application state <───┘
-                      │
-             display / format helpers
+components (apresentação)
+       │ ações / dados para renderização
+       ▼
+hooks (orquestração e estado)
+       │ operações de dados
+       ▼
+services (HTTP e erros de transporte)
+       │ payloads externos
+       ▼
+lib (normalização e funções puras)
+
+types define contratos compartilhados entre as camadas.
 ```
 
-- Separar a resposta externa do modelo de apresentação: serviços validam e
-  normalizam os dados antes de expô-los à UI.
+- Manter dependências unidirecionais: componentes não chamam serviços nem
+  conhecem o formato da API; hooks não constroem payloads externos; serviços
+  não dependem de React.
+- Separar a resposta externa do modelo de domínio: serviços cuidam do
+  transporte HTTP e `lib/` valida/normaliza os payloads antes de expô-los ao
+  restante da aplicação.
+- Manter lógica de apresentação sem efeitos colaterais em funções puras sempre
+  que ela puder ser expressa como transformação de entradas em saídas.
 - Manter uma única aplicação web responsiva, sem API própria, banco de dados,
   autenticação, analytics ou armazenamento de consultas/preferências.
 - Usar coordenadas da localidade selecionada para carregar o clima; não
@@ -50,29 +63,60 @@ Estrutura proposta para a implementação, ainda não existente no repositório:
 
 ```text
 src/
+  App.tsx
+  main.tsx
   components/
-    CitySearch.tsx        # Campo, envio, estados da busca e opções acessíveis
+    CitySearch.tsx        # Busca e seleção acessível de localidades
     CityResults.tsx       # Condições atuais, cinco dias e atribuição
     UnitToggle.tsx        # Controle Celsius/Fahrenheit
   hooks/
-    useWeatherSearch.ts   # Orquestra busca, seleção, consulta e estados
+    useWeatherSearch.ts   # Orquestra busca, seleção, previsão e estado
   services/
-    geocodingService.ts   # HTTP e normalização do geocoding
-    weatherService.ts     # HTTP e normalização da previsão
-  types/
-    weather.ts            # Contratos compartilhados de domínio e estados
-  utils/
-    temperature.ts        # Conversão e arredondamento
+    geocodingService.ts   # Requisição HTTP de geocoding e erros de transporte
+    weatherService.ts     # Requisição HTTP de previsão e erros de transporte
+  lib/
+    normalizeGeocoding.ts # Validação e normalização do payload de geocoding
+    normalizeWeather.ts   # Validação e normalização do payload de previsão
+    temperature.ts        # Conversão, arredondamento e apresentação
     weatherCode.ts        # Mapeamento de códigos para pt-BR
     date.ts               # Datas locais da cidade e formatação pt-BR
+  types/
+    weather.ts            # Contratos compartilhados de domínio e estados
 tests/
-  unit/                   # Serviços, normalizadores e funções puras
+  unit/                   # Funções puras, normalizadores e serviços
+  components/             # Interação e renderização com Testing Library
   e2e/                    # Fluxos principais com respostas de API controladas
 ```
 
-Manter componentes pequenos e separar utilitários somente quando forem funções
-reutilizáveis ou puras que mereçam teste independente. Os nomes são uma
-proposta; o plano não exige criar arquivos além do necessário para as tarefas.
+### Responsabilidades por camada
+
+- **`components/` — apresentação:** renderizam busca, opções, resultados e
+  controle de unidade; encaminham eventos para o hook e exibem os estados
+  recebidos. Não fazem `fetch`, não montam URLs e não interpretam payloads
+  externos. Devem manter semântica, acessibilidade e estados visuais de
+  carregamento, vazio, sucesso e erro.
+- **`hooks/` — orquestração e estado:** coordenam consulta, busca, seleção de
+  cidade, previsão, unidade e retry. Chamam os serviços, controlam operações
+  assíncronas e impedem que respostas obsoletas substituam resultados mais
+  recentes. Mantêm o estado local da página, sem introduzir estado global.
+- **`services/` — acesso a dados:** encapsulam `fetch`, construção de URL e
+  parâmetros, timeout e classificação de falhas de transporte. Encaminham os
+  payloads para os normalizadores de `lib/` e retornam dados de domínio ou
+  erros tipados; não contêm lógica de interface nem dependem de React.
+- **`lib/` — funções puras:** contém transformações determinísticas sem efeitos
+  colaterais, como validação/normalização de payloads, conversões de
+  temperatura, mapeamento WMO e operações de datas locais. As funções recebem
+  dados explícitos e retornam resultados, sem acessar rede, estado React ou
+  ambiente global mutável.
+- **`types/` — contratos:** reúne os tipos compartilhados de domínio, unidade,
+  estados assíncronos e erros. Os payloads externos podem ter tipos internos
+  aos normalizadores; a UI consome os contratos normalizados.
+
+Essa divisão mantém cada camada substituível e limita o impacto de mudanças:
+alterações de API ficam nos serviços/normalizadores, mudanças de fluxo no hook
+e ajustes visuais nos componentes. Manter componentes pequenos; adicionar
+arquivos apenas quando houver responsabilidade clara, reutilização ou valor de
+teste independente.
 
 ## Data Model
 
@@ -330,14 +374,25 @@ seu `requestId` ainda for o atual para aquela operação.
 
 ## Testing Strategy
 
-- **Unitários (Vitest):** testar conversões nos dois sentidos e empates para
-  longe de zero; mapeamento WMO; aparagem/codificação da consulta; normalização
-  de payloads completos, parciais, inválidos e não finitos; exatamente cinco
-  datas locais; comparação de horário de referência; timeout e classificação
-  de erro.
-- **Componentes (Testing Library):** busca por botão/Enter, validação vazia,
-  seleção por teclado, contexto geográfico/coordenadas, alternância de unidade,
-  indicação de indisponibilidade, carregamento, vazio, erro e retry.
+- **`lib/` (Vitest):** testar funções puras diretamente, sem renderização ou
+  mocks de rede: conversões nos dois sentidos e empates para longe de zero;
+  mapeamento WMO; normalização de payloads completos, parciais, inválidos e
+  não finitos; exatamente cinco datas locais; comparação de horário de
+  referência. Isso isola regras determinísticas e torna os casos de borda
+  rápidos e reproduzíveis.
+- **`services/` (Vitest):** controlar/mockar `fetch` para validar URLs,
+  parâmetros, codificação da consulta, timeout, respostas HTTP e falhas de
+  rede. Esses testes não dependem da disponibilidade da Open-Meteo e não
+  precisam renderizar componentes.
+- **`hooks/` (Testing Library):** verificar a coordenação dos estados
+  assíncronos, retry com os mesmos parâmetros, bloqueio de operações
+  duplicadas e descarte de respostas obsoletas. Serviços podem ser substituídos
+  por mocks para testar o fluxo sem tráfego de rede.
+- **`components/` (Testing Library):** testar comportamento observável e
+  acessível: busca por botão/Enter, validação vazia, seleção por teclado,
+  contexto geográfico/coordenadas, alternância de unidade, indicação de
+  indisponibilidade e apresentação de carregamento, vazio, erro e retry. Não
+  testar detalhes internos de implementação nem chamadas reais à API.
 - **Concorrência:** controlar respostas de teste para comprovar que buscas
   anteriores e consultas da cidade anterior não substituem a operação mais
   recente; garantir que resultado e identificação de cidade permaneçam
