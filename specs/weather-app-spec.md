@@ -55,8 +55,8 @@ identificar a cidade e apresentar um ícone correspondente ao código WMO e a
 condição em pt-BR. Deve também exibir umidade relativa (%), velocidade do vento
 (km/h), precipitação (mm) e pressão atmosférica (hPa). Métricas ausentes ou
 inválidas devem aparecer como “Indisponível”, preservando valores zero válidos.
-A troca de unidade afeta apenas a temperatura. Esta entrega do hero usa props
-e dados mock; ampliar a consulta e a normalização da API é uma entrega posterior.
+A troca de unidade afeta apenas a temperatura. A integração solicita e normaliza
+essas métricas da Open-Meteo; pressão corresponde à pressão na superfície.
 
 ### FR-03 — Consultar a previsão de cinco dias
 
@@ -72,8 +72,8 @@ a partir de `lg`. Cada card apresenta rótulo (“Hoje”, “Amanhã” ou dia 
 semana), data, ícone WMO, descrição, máxima/mínima na unidade selecionada e
 probabilidade de chuva (%). A probabilidade aceita valores de 0 a 100;
 ausência ou valor inválido aparece como “Indisponível”, sem inferir zero.
-Nesta entrega os componentes recebem props; rede e normalização permanecem
-fora da apresentação.
+Os componentes recebem props; rede e normalização permanecem fora da
+apresentação. A integração solicita a probabilidade máxima diária de precipitação.
 
 ### FR-04 — Alternar a unidade de temperatura
 

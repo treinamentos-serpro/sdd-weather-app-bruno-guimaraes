@@ -74,7 +74,9 @@ describe.each([
       vi.fn((_url: string, options: RequestInit) => {
         signal = options.signal ?? undefined;
         return new Promise<Response>((_resolve, reject) => {
-          signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+          signal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          );
         });
       }),
     );
@@ -114,12 +116,21 @@ describe('searchCities', () => {
     return {
       timezone: 'Europe/Lisbon',
       utc_offset_seconds: 3600,
-      current: { time: '2026-12-30T23:15', temperature_2m: 0, weather_code: 0 },
+      current: {
+        time: '2026-12-30T23:15',
+        temperature_2m: 0,
+        weather_code: 0,
+        relative_humidity_2m: 81,
+        wind_speed_10m: 6.9,
+        precipitation: 0,
+        surface_pressure: 1016.7,
+      },
       daily: {
         time: ['2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03'],
         temperature_2m_min: [-2.5, 0, 1.2, 2, 3],
         temperature_2m_max: [5.5, 6, 7.2, 8, 9],
         weather_code: [3, 1, 0, 61, 999],
+        precipitation_probability_max: [0, 10, 25.5, 100, 50],
       },
     };
   }
@@ -131,7 +142,7 @@ describe('searchCities', () => {
       await getWeather(city);
 
       expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
-        'https://api.open-meteo.com/v1/forecast?latitude=38.72509&longitude=-9.1498&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=celsius&timezone=auto&forecast_days=5',
+        'https://api.open-meteo.com/v1/forecast?latitude=38.72509&longitude=-9.1498&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,precipitation,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=mm&timezone=auto&forecast_days=5',
         { signal: expect.any(AbortSignal) },
       );
     });
@@ -147,6 +158,10 @@ describe('searchCities', () => {
         weatherCode: 0,
         descriptionPtBr: 'Céu limpo',
         sourceLocalTime: '2026-12-30T23:15',
+        humidityPercent: 81,
+        windSpeedKmh: 6.9,
+        precipitationMm: 0,
+        pressureHpa: 1016.7,
       });
       expect(result.timeZone).toBe('Europe/Lisbon');
       expect(result.utcOffsetSeconds).toBe(3600);
@@ -157,6 +172,7 @@ describe('searchCities', () => {
           maximumCelsius: 5.5,
           weatherCode: 3,
           descriptionPtBr: 'Nublado',
+          precipitationProbabilityPercent: 0,
         },
         {
           localDate: '2026-12-31',
@@ -164,6 +180,7 @@ describe('searchCities', () => {
           maximumCelsius: 6,
           weatherCode: 1,
           descriptionPtBr: 'Predominantemente limpo',
+          precipitationProbabilityPercent: 10,
         },
         {
           localDate: '2027-01-01',
@@ -171,6 +188,7 @@ describe('searchCities', () => {
           maximumCelsius: 7.2,
           weatherCode: 0,
           descriptionPtBr: 'Céu limpo',
+          precipitationProbabilityPercent: 25.5,
         },
         {
           localDate: '2027-01-02',
@@ -178,6 +196,7 @@ describe('searchCities', () => {
           maximumCelsius: 8,
           weatherCode: 61,
           descriptionPtBr: 'Chuva leve',
+          precipitationProbabilityPercent: 100,
         },
         {
           localDate: '2027-01-03',
@@ -185,6 +204,7 @@ describe('searchCities', () => {
           maximumCelsius: 9,
           weatherCode: 999,
           descriptionPtBr: null,
+          precipitationProbabilityPercent: 50,
         },
       ]);
     });
@@ -196,6 +216,7 @@ describe('searchCities', () => {
         temperature_2m_min: [1, -2, 20],
         temperature_2m_max: [7, 5, 30],
         weather_code: [0, 3, 61],
+        precipitation_probability_max: [25, 0, 100],
       };
       mockResponse(body);
 
@@ -204,12 +225,20 @@ describe('searchCities', () => {
       expect(forecast).toHaveLength(5);
       expect(forecast.map((day) => day.localDate)).toEqual(forecastResponse().daily.time);
       expect(forecast.map((day) => day.minimumCelsius)).toEqual([-2, null, 1, null, null]);
+      expect(forecast.map((day) => day.precipitationProbabilityPercent)).toEqual([
+        0,
+        null,
+        25,
+        null,
+        null,
+      ]);
       expect(forecast[1]).toEqual({
         localDate: '2026-12-31',
         minimumCelsius: null,
         maximumCelsius: null,
         weatherCode: null,
         descriptionPtBr: null,
+        precipitationProbabilityPercent: null,
       });
     });
 
@@ -234,6 +263,10 @@ describe('searchCities', () => {
         weatherCode: null,
         descriptionPtBr: null,
         sourceLocalTime: null,
+        humidityPercent: null,
+        windSpeedKmh: null,
+        precipitationMm: null,
+        pressureHpa: null,
       });
       expect(result.timeZone).toBeNull();
       expect(result.utcOffsetSeconds).toBeNull();
@@ -252,6 +285,97 @@ describe('searchCities', () => {
         null,
       ]);
       expect(result.forecast.map((day) => day.weatherCode)).toEqual([null, null, 0, null, null]);
+    });
+
+    it.each([
+      [0, 0, 0, 0],
+      [100, 100, 100, 100],
+      [null, null, null, null],
+      [undefined, undefined, undefined, null],
+      ['20', '20', '20', null],
+      [-1, -1, -1, null],
+      [101, 101, 101, null],
+      [Number.NaN, Number.NaN, Number.NaN, null],
+      [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, null],
+    ])('valida percentuais %s e preserva vento/precipitação não negativos', async (humidity, wind, precipitation, percent) => {
+      mockResponse({
+        ...forecastResponse(),
+        current: {
+          ...forecastResponse().current,
+          relative_humidity_2m: humidity,
+          wind_speed_10m: wind,
+          precipitation,
+        },
+        daily: { ...forecastResponse().daily, precipitation_probability_max: [humidity] },
+      });
+
+      const result = await getWeather(city);
+      const nonNegative =
+        typeof wind === 'number' && Number.isFinite(wind) && wind >= 0 ? wind : null;
+      expect(result.current.humidityPercent).toBe(percent);
+      expect(result.current.windSpeedKmh).toBe(nonNegative);
+      expect(result.current.precipitationMm).toBe(nonNegative);
+      expect(result.forecast.map((day) => day.precipitationProbabilityPercent)).toEqual([
+        percent,
+        null,
+        null,
+        null,
+        null,
+      ]);
+    });
+
+    it.each([
+      undefined,
+      null,
+      '1016',
+      0,
+      -1,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ])('normaliza pressão inválida %s como null', async (surfacePressure) => {
+      mockResponse({
+        ...forecastResponse(),
+        current: { ...forecastResponse().current, surface_pressure: surfacePressure },
+      });
+
+      expect((await getWeather(city)).current.pressureHpa).toBeNull();
+    });
+
+    it.each([
+      undefined,
+      null,
+      {},
+      '50',
+    ])('aceita resposta parcial sem array de probabilidades: %j', async (probabilities) => {
+      mockResponse({
+        ...forecastResponse(),
+        daily: { ...forecastResponse().daily, precipitation_probability_max: probabilities },
+      });
+
+      const result = await getWeather(city);
+      expect(result.forecast.map((day) => day.precipitationProbabilityPercent)).toEqual([
+        null,
+        null,
+        null,
+        null,
+        null,
+      ]);
+      expect(result.forecast[0].minimumCelsius).toBe(-2.5);
+    });
+
+    it.each([
+      { current: { relative_humidity_2m: 0 }, daily: {} },
+      { current: { wind_speed_10m: 0 }, daily: {} },
+      { current: { precipitation: 0 }, daily: {} },
+      { current: { surface_pressure: 1016.7 }, daily: {} },
+      { current: {}, daily: { precipitation_probability_max: [0] } },
+    ])('aceita resposta com apenas métricas adicionais válidas: %j', async (partial) => {
+      mockResponse({
+        current: { time: '2026-12-30T12:00', ...partial.current },
+        daily: { time: ['2026-12-30'], ...partial.daily },
+      });
+
+      await expect(getWeather(city)).resolves.toMatchObject({ city });
     });
 
     it.each([
@@ -285,10 +409,35 @@ describe('searchCities', () => {
       await expect(getWeather(city)).rejects.toThrow(new WeatherServiceError('Falha de rede.'));
     });
 
-    it('propaga JSON inválido sem produzir sucesso vazio', async () => {
+    it('normaliza JSON inválido sem produzir sucesso vazio', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('invalid json')));
 
-      await expect(getWeather(city)).rejects.toThrow(SyntaxError);
+      await expect(getWeather(city)).rejects.toThrow(
+        new WeatherServiceError('Resposta de previsão com JSON inválido.'),
+      );
+    });
+
+    it.each([200, 400])('inclui o motivo declarado pela API para HTTP %i', async (status) => {
+      mockResponse({ error: true, reason: 'Invalid parameters' }, status);
+
+      await expect(getWeather(city)).rejects.toThrow(
+        new WeatherServiceError(
+          status === 200
+            ? 'Erro informado pela API de previsão. Invalid parameters'
+            : 'Erro ao buscar previsão (HTTP 400). Invalid parameters',
+        ),
+      );
+    });
+
+    it('preserva o status HTTP quando o corpo não contém JSON válido', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(new Response('<html>Bad Gateway</html>', { status: 502 })),
+      );
+
+      await expect(getWeather(city)).rejects.toThrow(
+        new WeatherServiceError('Erro ao buscar previsão (HTTP 502).'),
+      );
     });
   });
 

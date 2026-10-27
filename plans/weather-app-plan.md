@@ -375,8 +375,9 @@ validação prévia de cobertura, licença, atribuição, limites e disponibilid
   `daily` selecionam explicitamente as variáveis abaixo; `temperature_unit=celsius`
   fixa a unidade recebida; `timezone=auto` determina o fuso local pelas
   coordenadas; `forecast_days=5` solicita hoje e os quatro dias seguintes.
+  `wind_speed_unit=kmh` e `precipitation_unit=mm` fixam as unidades das métricas.
 - **Exemplo de chamada:**
-  `https://api.open-meteo.com/v1/forecast?latitude=38.72509&longitude=-9.1498&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=celsius&timezone=auto&forecast_days=5`
+  `https://api.open-meteo.com/v1/forecast?latitude=38.72509&longitude=-9.1498&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,precipitation,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=mm&timezone=auto&forecast_days=5`
 - **Resposta resumida** (os arrays diários correspondem por índice):
 
   ```json
@@ -386,13 +387,18 @@ validação prévia de cobertura, licença, atribuição, limites e disponibilid
     "current": {
       "time": "2026-10-27T17:15",
       "temperature_2m": 20.8,
-      "weather_code": 2
+      "weather_code": 2,
+      "relative_humidity_2m": 81,
+      "wind_speed_10m": 6.9,
+      "precipitation": 0,
+      "surface_pressure": 1016.7
     },
     "daily": {
       "time": ["2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31"],
       "weather_code": [3, 1, 0, 0, 0],
       "temperature_2m_max": [23.5, 24.6, 25.7, 26.9, 26.4],
-      "temperature_2m_min": [12.0, 12.8, 11.9, 13.7, 14.2]
+      "temperature_2m_min": [12.0, 12.8, 11.9, 13.7, 14.2],
+      "precipitation_probability_max": [0, 0, 0, 0, 0]
     }
   }
   ```
@@ -409,6 +415,17 @@ validação prévia de cobertura, licença, atribuição, limites e disponibilid
   campo ausente ou inválido vira `null`, sem deslocar os demais índices.
   `descriptionPtBr` em `CurrentWeather` e `ForecastDay` é derivada do código
   WMO pela tabela da aplicação; não é um campo deste payload.
+
+- **Métricas adicionais:** `current.relative_humidity_2m` → `humidityPercent`,
+  `current.wind_speed_10m` → `windSpeedKmh`, `current.precipitation` →
+  `precipitationMm`, `current.surface_pressure` → `pressureHpa` (na superfície).
+  `daily.precipitation_probability_max[i]` → `precipitationProbabilityPercent`
+  usa o mesmo índice da data. Percentuais aceitam 0–100; vento e precipitação
+  aceitam valores não negativos; pressão deve ser positiva. Valores não finitos,
+  ausentes ou inválidos viram `null`, preservando zeros válidos.
+- **Erros de forecast:** JSON inválido resulta em `WeatherServiceError` em pt-BR;
+  erros HTTP preservam o status mesmo sem JSON válido. O `reason` textual de
+  erros HTTP/API é incluído na mensagem, quando disponível.
 
 Referências oficiais: [Forecast API](https://open-meteo.com/en/docs) e
 [Geocoding API](https://open-meteo.com/en/docs/geocoding-api).

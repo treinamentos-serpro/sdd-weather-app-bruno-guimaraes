@@ -200,6 +200,8 @@ requisito funcional sem tarefa correspondente.
     utilizável é sucesso.
   - Descrições são derivadas do mapeador WMO e horários/offsets são
     normalizados sem inferir valores.
+  - Normalizar umidade, vento, precipitação, pressão na superfície e probabilidade
+    máxima diária conforme os limites do plano, preservando zeros e índices.
 - **Dependências:** T-04, T-07, T-09.
 - **Arquivos prováveis:** `src/lib/normalizeWeather.ts`.
 - **Tipo:** Data.
@@ -270,6 +272,10 @@ requisito funcional sem tarefa correspondente.
     reconstruir a cidade a partir do forecast.
   - Timeout de 10 segundos e falhas de rede, HTTP, API ou resposta inválida
     resultam em erro recuperável; não são convertidos em sucesso vazio.
+  - Solicitar as métricas adicionais em `current` e `daily`, com vento em km/h
+    e precipitação em mm. Cobrir mapeamento, limites e dados parciais em testes.
+  - JSON inválido gera `WeatherServiceError` em pt-BR; erros HTTP mantêm o status
+    e erros HTTP/API incluem o `reason` textual disponível.
 - **Dependências:** T-01, T-13.
 - **Arquivos prováveis:** `src/services/weatherService.ts`.
 - **Tipo:** Data.

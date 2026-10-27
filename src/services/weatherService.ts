@@ -80,6 +80,15 @@ function toFiniteNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function toMetricNumber(
+  value: unknown,
+  min: number,
+  max = Number.POSITIVE_INFINITY,
+): number | null {
+  const number = toFiniteNumber(value);
+  return number !== null && number >= min && number <= max ? number : null;
+}
+
 function toWeatherCode(value: unknown): number | null {
   const code = toFiniteNumber(value);
   return code !== null && Number.isInteger(code) && code >= 0 ? code : null;
@@ -105,14 +114,32 @@ function toSourceLocalTime(value: unknown): string | null {
 
 export async function getWeather(city: City): Promise<WeatherData> {
   const response = await fetchWithTimeout(
-    `https://api.open-meteo.com/v1/forecast?latitude=${city.latitude}&longitude=${city.longitude}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&temperature_unit=celsius&timezone=auto&forecast_days=5`,
+    `https://api.open-meteo.com/v1/forecast?latitude=${city.latitude}&longitude=${city.longitude}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,precipitation,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=celsius&wind_speed_unit=kmh&precipitation_unit=mm&timezone=auto&forecast_days=5`,
   );
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch (error) {
+    if (!response.ok) {
+      throw new WeatherServiceError(`Erro ao buscar previsão (HTTP ${response.status}).`);
+    }
+    if (error instanceof SyntaxError) {
+      throw new WeatherServiceError('Resposta de previsão com JSON inválido.');
+    }
+    throw error;
+  }
+  const reason =
+    isRecord(data) && typeof data.reason === 'string' && data.reason.trim()
+      ? ` ${data.reason.trim()}`
+      : '';
   if (!response.ok) {
-    throw new WeatherServiceError(`Erro ao buscar previsão (HTTP ${response.status}).`);
+    throw new WeatherServiceError(`Erro ao buscar previsão (HTTP ${response.status}).${reason}`);
+  }
+  if (isRecord(data) && data.error === true) {
+    throw new WeatherServiceError(`Erro informado pela API de previsão.${reason}`);
   }
 
-  const data: unknown = await response.json();
-  if (!isRecord(data) || data.error === true || !isRecord(data.current) || !isRecord(data.daily)) {
+  if (!isRecord(data) || !isRecord(data.current) || !isRecord(data.daily)) {
     throw new WeatherServiceError('Resposta de previsão incompleta ou inválida.');
   }
 
@@ -130,6 +157,10 @@ export async function getWeather(city: City): Promise<WeatherData> {
     weatherCode,
     descriptionPtBr: getWeatherCondition(weatherCode)?.description ?? null,
     sourceLocalTime,
+    humidityPercent: toMetricNumber(data.current.relative_humidity_2m, 0, 100),
+    windSpeedKmh: toMetricNumber(data.current.wind_speed_10m, 0),
+    precipitationMm: toMetricNumber(data.current.precipitation, 0),
+    pressureHpa: toMetricNumber(data.current.surface_pressure, Number.MIN_VALUE),
   };
   const date = new Date(`${startDate}T00:00:00Z`);
   const forecast: ForecastDay[] = Array.from({ length: 5 }, () => {
@@ -149,15 +180,29 @@ export async function getWeather(city: City): Promise<WeatherData> {
       ),
       weatherCode: code,
       descriptionPtBr: getWeatherCondition(code)?.description ?? null,
+      precipitationProbabilityPercent: toMetricNumber(
+        Array.isArray(daily.precipitation_probability_max)
+          ? daily.precipitation_probability_max[index]
+          : undefined,
+        0,
+        100,
+      ),
     };
   });
 
   if (
     current.temperatureCelsius === null &&
     current.weatherCode === null &&
+    current.humidityPercent === null &&
+    current.windSpeedKmh === null &&
+    current.precipitationMm === null &&
+    current.pressureHpa === null &&
     !forecast.some(
       (day) =>
-        day.minimumCelsius !== null || day.maximumCelsius !== null || day.weatherCode !== null,
+        day.minimumCelsius !== null ||
+        day.maximumCelsius !== null ||
+        day.weatherCode !== null ||
+        day.precipitationProbabilityPercent !== null,
     )
   ) {
     throw new WeatherServiceError('Resposta de previsão sem dados meteorológicos válidos.');
