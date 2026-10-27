@@ -76,59 +76,62 @@ proposta; o plano não exige criar arquivos além do necessário para as tarefas
 
 ## Data Model
 
-Contratos de domínio. `null` representa campo ausente ou inválido na resposta;
+Contratos de domínio normalizados, separados dos payloads da Open-Meteo e com
+nomes em camelCase. `null` representa campo ausente ou inválido na resposta;
 esses valores são mostrados como indisponíveis e nunca formatados como
 temperaturas ou condições válidas.
 
 ```ts
-type TemperatureUnit = "celsius" | "fahrenheit";
+export type Unit = "celsius" | "fahrenheit"; // Unidade de exibição.
 
-interface CityCandidate {
-  id: number | null;
-  name: string;
-  country: string | null;
-  region: string | null;
-  latitude: number;
-  longitude: number;
+export interface City {
+  id: number | null; // Identificador retornado pelo geocoding.
+  name: string; // Nome da localidade.
+  country: string | null; // Nome do país (country).
+  region: string | null; // Estado ou região (admin1).
+  latitude: number; // Latitude em graus decimais.
+  longitude: number; // Longitude em graus decimais.
 }
 
-type SelectedCity = CityCandidate;
-
-interface WeatherCondition {
-  code: number | null;
-  descriptionPtBr: string | null;
+export interface CurrentWeather {
+  temperatureCelsius: number | null; // Temperatura a 2 m (temperature_2m), em °C.
+  weatherCode: number | null; // Código meteorológico WMO (weather_code).
+  descriptionPtBr: string | null; // Descrição derivada do código WMO em pt-BR.
+  sourceLocalTime: string | null; // Horário local de referência (current.time).
 }
 
-interface CurrentConditions {
-  temperatureCelsius: number | null;
-  condition: WeatherCondition;
-  sourceLocalTime: string | null;
-  timeZone: string | null;
-  utcOffsetSeconds: number | null;
+export interface ForecastDay {
+  localDate: string; // Data YYYY-MM-DD no calendário da cidade (daily.time).
+  minimumCelsius: number | null; // Mínima diária (temperature_2m_min), em °C.
+  maximumCelsius: number | null; // Máxima diária (temperature_2m_max), em °C.
+  weatherCode: number | null; // Código WMO diário (daily.weather_code).
+  descriptionPtBr: string | null; // Descrição derivada do código WMO em pt-BR.
 }
 
-interface ForecastDay {
-  localDate: string; // YYYY-MM-DD no calendário local da cidade
-  minimumCelsius: number | null;
-  maximumCelsius: number | null;
-  condition: WeatherCondition;
-}
-
-interface WeatherReport {
-  city: SelectedCity;
-  current: CurrentConditions;
-  forecast: ForecastDay[]; // exatamente cinco datas consecutivas
-  forecastTimeZone: string | null;
-  forecastUpdatedAt: string | null; // somente se a fonte documentar campo confiável
+export interface WeatherData {
+  city: City; // Localidade selecionada no geocoding.
+  current: CurrentWeather; // Condições atuais normalizadas.
+  forecast: ForecastDay[]; // Hoje e os quatro dias seguintes, em ordem.
+  timeZone: string | null; // Fuso IANA retornado pela previsão (timezone).
+  utcOffsetSeconds: number | null; // Deslocamento informado (utc_offset_seconds).
 }
 ```
 
-`forecast` deve conter cinco posições esperadas mesmo quando a fonte omitir
-uma data; valores ausentes permanecem `null`. A descrição em pt-BR é derivada
-de uma tabela explícita dos códigos meteorológicos WMO suportados; códigos
-desconhecidos não recebem descrição inventada. A camada de apresentação deriva
-temperaturas na unidade selecionada, arredondadas ao inteiro mais próximo com
-empates para longe de zero.
+- O serviço deve garantir cinco datas consecutivas em `forecast`; o tipo
+  `ForecastDay[]` não impõe esse tamanho. Mesmo quando a fonte omitir uma data,
+  a posição mantém `localDate` e os demais campos como `null`.
+- `descriptionPtBr` é derivada pela aplicação de uma tabela explícita dos
+  códigos meteorológicos WMO suportados; não vem da API de previsão. Códigos
+  desconhecidos resultam em descrição `null`, sem inventar condições.
+- Temperaturas são armazenadas em Celsius, com a precisão de origem. `Unit`
+  pertence ao estado da interface: alterná-la converte somente a exibição,
+  sem nova requisição. Arredondar ao inteiro mais próximo com empates para
+  longe de zero apenas na apresentação.
+- `sourceLocalTime` é o horário de referência das condições atuais, não o
+  instante de atualização da previsão. Não interpretar esse valor no fuso do
+  dispositivo; usar o contexto de fuso retornado pela fonte.
+- Não incluir `updatedAt` ou `forecastUpdatedAt` enquanto não houver um campo
+  confiável documentado pela fonte para a atualização da previsão.
 
 Estados assíncronos devem distinguir `idle`, `loading`, `success`, `empty` e
 `error`. `empty` aplica-se a geocoding sem correspondências; não é estado de
@@ -137,7 +140,7 @@ erro meteorológico.
 ```ts
 type RetryRequest =
   | { operation: "search"; query: string }
-  | { operation: "weather"; city: SelectedCity };
+  | { operation: "weather"; city: City };
 
 interface WeatherAppError {
   kind: "network" | "http" | "timeout" | "invalid-response";
@@ -158,7 +161,7 @@ interface WeatherAppError {
 3. Selecionar uma opção atualiza imediatamente a cidade ativa e inicia a
    consulta meteorológica com suas coordenadas. Durante o carregamento, não
    apresentar dados da cidade anterior como se fossem da nova seleção.
-4. `weatherService` valida a resposta e a normaliza para `WeatherReport`.
+4. `weatherService` valida a resposta e a normaliza para `WeatherData`.
    Usar a data local de `current.time` como início do calendário e gerar as
    cinco datas com aritmética de data-only; associar os dados diários pela
    string `YYYY-MM-DD`. Uma data diária ausente continua na lista como
@@ -212,10 +215,10 @@ type OperationState<T> =
 
 interface WeatherPageState {
   query: string;
-  search: OperationState<CityCandidate[]>;
-  selectedCity: SelectedCity | null;
-  weather: OperationState<WeatherReport>;
-  unit: TemperatureUnit; // inicia em celsius; nunca persistida
+  search: OperationState<City[]>;
+  selectedCity: City | null;
+  weather: OperationState<WeatherData>;
+  unit: Unit; // inicia em celsius; nunca persistida
 }
 ```
 
