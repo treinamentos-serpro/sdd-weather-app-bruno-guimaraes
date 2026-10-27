@@ -168,7 +168,7 @@ requisito funcional sem tarefa correspondente.
     inferir uma condição.
   - A função é pura e não altera o código meteorológico de origem.
 - **Dependências:** T-04.
-- **Arquivos prováveis:** `src/lib/weatherCode.ts`.
+- **Arquivos prováveis:** `src/lib/weatherCodes.ts`.
 - **Tipo:** Data.
 - **Rastreabilidade:** FR-02, FR-03; AC-02.2, AC-03.2, AC-05.6.
 
@@ -310,6 +310,15 @@ requisito funcional sem tarefa correspondente.
 
 ### T-23 — Criar a interface de condições atuais e previsão
 
+- **Recorte do hero:** Implementar `src/components/CurrentWeather.tsx` com
+  `city`, `current` e `unit`, temperatura em destaque, ícone WMO, condição e
+  métricas opcionais (umidade, vento, precipitação e pressão). Criar os
+  utilitários de T-09/T-11 e ampliar o contrato de T-04 sem quebrar consumidores.
+  Validar Celsius/Fahrenheit, empates negativos, códigos desconhecidos,
+  métricas zero, ausentes e inválidas, além de identificação acessível da cidade.
+  Atualizar o mock para demonstrar as quatro métricas. Este recorte não conclui
+  T-23: previsão, estados de rede, atualidade e atribuição continuam pendentes;
+  ampliar a consulta/normalização da API em T-13/T-17 permanece fora da entrega.
 - **Descrição:** Apresentar cidade, condições atuais, cinco dias, campos
   indisponíveis, referência temporal e atribuição da fonte.
 - **Critérios de aceite:**

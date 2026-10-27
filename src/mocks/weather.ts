@@ -14,6 +14,10 @@ export const mockWeatherData: WeatherData = {
     weatherCode: 2,
     descriptionPtBr: 'Parcialmente nublado',
     sourceLocalTime: '2026-10-27T15:00',
+    humidityPercent: 65,
+    windSpeedKmh: 12.5,
+    precipitationMm: 0,
+    pressureHpa: 1013.2,
   },
   forecast: [
     {

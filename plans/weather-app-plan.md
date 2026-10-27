@@ -79,7 +79,7 @@ src/
     normalizeGeocoding.ts # Validação e normalização do payload de geocoding
     normalizeWeather.ts   # Validação e normalização do payload de previsão
     temperature.ts        # Conversão, arredondamento e apresentação
-    weatherCode.ts        # Mapeamento de códigos para pt-BR
+    weatherCodes.ts       # Descrições pt-BR e ícones de códigos WMO
     date.ts               # Datas locais da cidade e formatação pt-BR
   types/
     weather.ts            # Contratos compartilhados de domínio e estados
@@ -127,6 +127,23 @@ extremidades. `disabled` bloqueia edição e envio. O componente usa o tema
 glassmorphism e não consulta serviços; opções e estados de rede permanecem
 responsabilidade da composição de busca.
 
+`CurrentWeather` implementa o hero de T-23 com props `city: City`,
+`current: CurrentWeather` e `unit: Unit`. Usa `lib/temperature` para formatar
+temperaturas inteiras (empates para longe de zero) e `lib/weatherCodes` para
+descrições e ícones Unicode, sem dependências extras. A descrição normalizada,
+quando presente, tem preferência sobre a tabela. Códigos desconhecidos usam
+ícone neutro, nunca uma condição inferida. O layout glass responsivo usa uma
+seção nomeada e uma lista de definições para as quatro métricas; ícones são
+decorativos, pois a condição já é textual.
+
+Os campos opcionais `humidityPercent`, `windSpeedKmh`, `precipitationMm` e
+`pressureHpa` aceitam `number | null`, preservando consumidores existentes.
+Ausência, valores não finitos, umidade fora de 0–100, vento/precipitação negativos
+e pressão não positiva são exibidos como “Indisponível”. Métricas usam pt-BR com
+até uma casa decimal, nas unidades fixas %, km/h, mm e hPa. O componente é
+apenas de apresentação; loading/erro, horário/atualidade, atribuição e integração
+com a API continuam na composição de resultados e nas tarefas correspondentes.
+
 ## Data Model
 
 Contratos de domínio normalizados, separados dos payloads da Open-Meteo e com
@@ -151,6 +168,10 @@ export interface CurrentWeather {
   weatherCode: number | null; // Código meteorológico WMO (weather_code).
   descriptionPtBr: string | null; // Descrição derivada do código WMO em pt-BR.
   sourceLocalTime: string | null; // Horário local de referência (current.time).
+  humidityPercent?: number | null; // Umidade relativa em %.
+  windSpeedKmh?: number | null; // Velocidade do vento em km/h.
+  precipitationMm?: number | null; // Precipitação em mm.
+  pressureHpa?: number | null; // Pressão atmosférica em hPa.
 }
 
 export interface ForecastDay {

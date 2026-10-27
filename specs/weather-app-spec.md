@@ -50,6 +50,14 @@ indisponíveis, sem inferir valores. As descrições devem ser apresentadas em
 português do Brasil. A atualização deve ser identificada pelo horário de
 referência fornecido pela fonte, quando disponível.
 
+O hero de condições atuais deve destacar a temperatura na unidade selecionada,
+identificar a cidade e apresentar um ícone correspondente ao código WMO e a
+condição em pt-BR. Deve também exibir umidade relativa (%), velocidade do vento
+(km/h), precipitação (mm) e pressão atmosférica (hPa). Métricas ausentes ou
+inválidas devem aparecer como “Indisponível”, preservando valores zero válidos.
+A troca de unidade afeta apenas a temperatura. Esta entrega do hero usa props
+e dados mock; ampliar a consulta e a normalização da API é uma entrega posterior.
+
 ### FR-03 — Consultar a previsão de cinco dias
 
 Para a cidade selecionada, o sistema deve apresentar a previsão de hoje e dos

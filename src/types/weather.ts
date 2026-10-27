@@ -14,6 +14,10 @@ export interface CurrentWeather {
   weatherCode: number | null;
   descriptionPtBr: string | null;
   sourceLocalTime: string | null;
+  humidityPercent?: number | null;
+  windSpeedKmh?: number | null;
+  precipitationMm?: number | null;
+  pressureHpa?: number | null;
 }
 
 export interface ForecastDay {

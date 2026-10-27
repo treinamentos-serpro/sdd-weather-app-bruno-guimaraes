@@ -49,6 +49,10 @@ describe('Mock de clima', () => {
       weatherCode: 2,
       descriptionPtBr: 'Parcialmente nublado',
       sourceLocalTime: '2026-10-27T15:00',
+      humidityPercent: 65,
+      windSpeedKmh: 12.5,
+      precipitationMm: 0,
+      pressureHpa: 1013.2,
     });
     expect(mockWeatherData.timeZone).toBe('America/Sao_Paulo');
     expect(mockWeatherData.utcOffsetSeconds).toBe(-3 * 60 * 60);
