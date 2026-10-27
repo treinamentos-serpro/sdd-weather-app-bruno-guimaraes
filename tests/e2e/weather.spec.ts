@@ -1,4 +1,5 @@
-import { expect, type Page, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, expectNoHorizontalOverflow, test } from './fixtures';
 
 const geocodingResponse = {
   results: [
@@ -35,8 +36,6 @@ const forecastResponse = {
 };
 
 async function mockOpenMeteo(page: Page) {
-  // Evita dependência de rede externa (ex.: fontes) e torna o teste determinístico.
-  await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
   await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
     route.fulfill({ json: geocodingResponse }),
   );
@@ -76,7 +75,6 @@ test.describe('Weather App — fluxo de busca', () => {
 test.describe('Weather App — cidade não encontrada', () => {
   test('exibe "Nenhuma cidade encontrada" quando o geocoding retorna {}', async ({ page }) => {
     let forecastRequested = false;
-    await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
     await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
       route.fulfill({ json: {} }),
     );
@@ -114,15 +112,12 @@ test.describe('Weather App — viewport mobile (375x812)', () => {
     await expect(forecast).toBeVisible();
     await expect(forecast.getByRole('listitem')).toHaveCount(5);
 
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true);
+    await expectNoHorizontalOverflow(page);
   });
 });
 
 test.describe('Weather App — falha da API e resposta parcial', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
     await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
       route.fulfill({ json: geocodingResponse }),
     );

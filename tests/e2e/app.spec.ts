@@ -1,10 +1,9 @@
-import { expect, test } from '@playwright/test';
 import { mockWeatherData } from '../../src/mocks/weather';
+import { expect, expectNoHorizontalOverflow, expectWithinViewportWidth, test } from './fixtures';
 
 test('mantém layout e controles acessíveis a partir de 320 px', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.route('https://fonts.googleapis.com/**', (route) => route.abort());
   await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
     route.fulfill({
       json: {
@@ -37,13 +36,17 @@ test('mantém layout e controles acessíveis a partir de 320 px', async ({ page 
     }),
   );
 
+  const forecastCards = page
+    .getByRole('region', { name: 'Previsão de 5 dias' })
+    .getByRole('listitem');
+
   for (const width of [320, 390, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     const response = await page.goto('/');
     expect(response?.status()).toBe(200);
     await expect(page.getByRole('heading', { name: 'WeatherView' })).toBeVisible();
     await expect(page.getByText('Consulte o clima de uma cidade')).toBeVisible();
-    await expect(page.getByRole('listitem')).toHaveCount(0);
+    await expect(forecastCards).toHaveCount(0);
 
     for (const control of [
       page.getByRole('searchbox'),
@@ -51,24 +54,17 @@ test('mantém layout e controles acessíveis a partir de 320 px', async ({ page 
       page.getByRole('group', { name: 'Unidade de temperatura' }),
     ]) {
       await expect(control).toBeVisible();
-      const bounds = await control.boundingBox();
-      expect(bounds).not.toBeNull();
-      expect(bounds?.x).toBeGreaterThanOrEqual(0);
-      expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(width);
+      await expectWithinViewportWidth(control, width);
     }
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true);
+    await expectNoHorizontalOverflow(page);
 
     await page.getByRole('button', { name: 'Graus Fahrenheit' }).click();
     await page.getByRole('searchbox').fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'São Paulo', exact: true })).toBeVisible();
     await expect(page.getByLabel('Temperatura: 76 °F')).toBeVisible();
-    await expect(page.getByRole('listitem')).toHaveCount(5);
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
-    ).toBe(true);
+    await expect(forecastCards).toHaveCount(5);
+    await expectNoHorizontalOverflow(page);
   }
 
   expect(errors).toEqual([]);
