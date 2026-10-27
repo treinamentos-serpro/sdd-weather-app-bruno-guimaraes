@@ -2,9 +2,10 @@
 
 Backlog derivado de [plano técnico](../plans/weather-app-plan.md) e
 [especificação de produto](../specs/weather-app-spec.md). As tarefas estão
-agrupadas e ordenadas pelo fluxo de implementação: tipos, funções puras,
-serviços, hook, componentes, integração, testes e hardening. As dependências
-explícitas registram os pré-requisitos de cada tarefa. Tarefas de validação
+agrupadas por etapa de implementação: tipos, funções puras, serviços, hook,
+componentes, integração, testes e hardening. As dependências explícitas
+registram os pré-requisitos de cada tarefa; a sequência em fatias verticais
+abaixo sugere uma ordem alternativa de entrega. Tarefas de validação
 pré-publicação não substituem testes automatizados nem autorizam declarar
 metas sem evidências.
 
@@ -13,6 +14,74 @@ com limiar ou condição explícita quando aplicável. A rastreabilidade de cada
 tarefa aponta para os IDs pertinentes de requisitos, critérios de aceite ou
 requisitos não funcionais da spec; quando não houver vínculo direto, a tarefa
 é identificada como habilitadora técnica e vinculada ao plano.
+
+## Prioridade, tamanho e sequência de entrega
+
+**Prioridade** indica quando a tarefa precisa ser concluída:
+
+- **P0 — MVP:** necessária para a primeira versão funcional e verificável do
+  fluxo principal.
+- **P1 — qualidade de entrega:** necessária para robustez, acessibilidade ou
+  validação antes de considerar a entrega pronta.
+- **P2 — evidência de publicação:** pode ser feita depois do MVP interno, mas
+  não deve ser interpretada como dispensável; critérios da spec que exigem
+  conclusão antes da publicação continuam bloqueando a publicação.
+
+**Tamanho relativo** estima esforço e abrangência, não duração: **P** é
+localizado e de baixa complexidade; **M** envolve uma unidade de trabalho com
+vários casos ou integrações; **G** cruza estados, fluxos ou múltiplas
+plataformas e requer validação abrangente.
+
+| Tarefa | Prioridade | Tamanho | Tarefa | Prioridade | Tamanho |
+|---|---|---|---|---|---|
+| T-01 | P0 | P | T-23 | P0 | G |
+| T-02 | P0 | P | T-24 | P0 | P |
+| T-03 | P0 | M | T-25 | P0 | G |
+| T-04 | P0 | P | T-26 | P0 | M |
+| T-05 | P0 | M | T-27 | P0 | M |
+| T-06 | P0 | P | T-28 | P0 | M |
+| T-07 | P0 | M | T-29 | P1 | G |
+| T-08 | P0 | M | T-30 | P1 | M |
+| T-09 | P0 | M | T-31 | P1 | M |
+| T-10 | P0 | P | T-32 | P1 | M |
+| T-11 | P0 | P | T-33 | P1 | M |
+| T-12 | P0 | P | T-34 | P2 | G |
+| T-13 | P0 | G | T-35 | P1 | P |
+| T-14 | P0 | M | T-36 | P1 | P |
+| T-15 | P0 | M | T-37 | P1 | M |
+| T-16 | P0 | M | T-38 | P2 | G |
+| T-17 | P0 | M | T-39 | P2 | G |
+| T-18 | P0 | M | T-40 | P2 | G |
+| T-19 | P0 | G | T-41 | P1 | P |
+| T-20 | P0 | G | T-42 | P0 | M |
+| T-21 | P0 | M | T-43 | P1 | M |
+| T-22 | P0 | M |  |  |  |
+
+### Sequência sugerida em fatias verticais
+
+As fatias abaixo entregam incrementos demonstráveis. Dentro de cada fatia,
+respeite as dependências declaradas nas tarefas; testes devem acompanhar a
+implementação, não ficar para o fim.
+
+1. **Aplicação visível:** T-02, T-03 e T-04. Monta a aplicação e apresenta o
+   shell visual inicial. É um primeiro marco rápido, ainda sem consulta de
+   clima.
+2. **Primeira jornada útil:** T-01 e T-05 a T-27, respeitando dependências.
+   Entrega busca e seleção de cidade, condições atuais, cinco dias e
+   alternância de unidade, com estados de carregamento e erro; os testes
+   unitários e de componentes acompanham cada parte.
+3. **MVP verificável:** T-42 e T-28. Confirma os testes unitários/de
+   componentes e demonstra a jornada principal em E2E com fixtures; T-28
+   depende também do layout responsivo T-27, concluído na fatia anterior.
+4. **Robustez e preparação da entrega:** T-29 a T-31, T-43, T-41, T-32,
+   T-33 e T-35 a T-37, nessa ordem para respeitar dependências. Acrescenta
+   recuperação de falhas, concorrência, teclado, mobile, auditorias de
+   acessibilidade, validação externa da fonte e privacidade. T-41 depende de
+   T-43; as auditorias e validações externas dependem de T-41.
+5. **Evidências para publicação:** T-34 e T-38 a T-40. Conclua depois de
+   T-41, conforme dependências. São validações amplas ou medições que podem
+   esperar pelo MVP interno, mas seus critérios e NFRs continuam valendo
+   antes da publicação.
 
 ## Matriz de rastreabilidade dos requisitos funcionais
 
