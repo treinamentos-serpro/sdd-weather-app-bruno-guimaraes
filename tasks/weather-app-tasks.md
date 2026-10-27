@@ -310,6 +310,12 @@ requisito funcional sem tarefa correspondente.
 
 ### T-23 — Criar a interface de condições atuais e previsão
 
+- **Recorte dos estados:** Criados `LoadingState` (anúncio com `role="status"`),
+  `ErrorState` (`message` e callback `onRetry`, com botão "Tentar novamente") e
+  `EmptyState` (`title` e `hint`) em `src/components/states/`. Os componentes
+  seguem o tema glass e têm testes de renderização e retry por clique/teclado.
+  A composição com busca e previsão permanece pendente em T-21/T-23/T-26;
+  `EmptyState` destina-se à busca sem correspondências, não à falha meteorológica.
 - **Recorte da previsão:** Implementar `ForecastList` e `ForecastCard` com grid
   2/3/5 colunas, rótulos e datas por `lib/format`, ícone/descrição WMO,
   máxima/mínima na unidade selecionada e probabilidade de chuva opcional em
