@@ -249,6 +249,13 @@ requisito funcional sem tarefa correspondente.
 
 ### T-17 — Implementar o serviço de previsão
 
+- **Recorte implementado:** `getWeather(city)` consulta `current` e `daily`,
+  preserva a cidade selecionada e normaliza cinco dias com descrições WMO.
+  Estruturas ausentes/inválidas e respostas sem dados utilizáveis lançam
+  `WeatherServiceError`. O calendário parte de `current.time`; se inválido,
+  usa a primeira data diária válida na posição inicial, sem consultar o
+  relógio do dispositivo. Testes usam `fetch` mockado. Timeout e classificação
+  de falhas de rede permanecem pendentes nesta tarefa.
 - **Descrição:** Encapsular a consulta de forecast por coordenadas, timeout,
   validação e normalização para o modelo de domínio.
 - **Critérios de aceite:**
