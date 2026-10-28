@@ -669,6 +669,27 @@ describe('searchCities', () => {
       ).toBe(true);
     });
 
+    it('trata arrays diários mais curtos que daily.time como dias indisponíveis (AC-03.5)', async () => {
+      const body = forecastResponse();
+      mockResponse({
+        ...body,
+        daily: {
+          time: body.daily.time,
+          temperature_2m_min: [-2.5, 0],
+          temperature_2m_max: [5.5],
+          weather_code: [3, 1, 0],
+        },
+      });
+
+      const { forecast } = await getWeather(city);
+
+      expect(forecast.map((day) => day.localDate)).toEqual(body.daily.time);
+      expect(forecast.map((day) => day.minimumCelsius)).toEqual([-2.5, 0, null, null, null]);
+      expect(forecast.map((day) => day.maximumCelsius)).toEqual([5.5, null, null, null, null]);
+      expect(forecast.map((day) => day.weatherCode)).toEqual([3, 1, 0, null, null]);
+      expect(forecast.every((day) => day.precipitationProbabilityPercent === null)).toBe(true);
+    });
+
     it.each([
       [429, 'Too many requests', 'Muitas consultas em pouco tempo.'],
       [503, 'Service unavailable', 'O serviço de clima está temporariamente indisponível.'],
@@ -693,6 +714,24 @@ describe('searchCities', () => {
       'https://geocoding-api.open-meteo.com/v1/search?name=S%C3%A3o%20Paulo%20%26%20regi%C3%A3o%3F&count=10&language=pt&format=json',
       { signal: expect.any(AbortSignal) },
     );
+  });
+
+  it.each([
+    'Rio + Bahia',
+    'Cidade #2',
+    'Norte/Sul',
+    '100% Cidade',
+    'Lisboa&count=99&name=Porto',
+    "Sant'Ana do Livramento",
+  ])('codifica caracteres reservados de URL sem injetar parâmetros: %j (AC-01.6)', async (name) => {
+    const fetchMock = mockResponse({});
+
+    await searchCities(name);
+
+    const url = new URL(fetchMock.mock.calls[0][0]);
+    expect(url.searchParams.getAll('name')).toEqual([name]);
+    expect(url.searchParams.getAll('count')).toEqual(['10']);
+    expect(url.hash).toBe('');
   });
 
   it('mapeia os resultados para City e preserva a ordem', async () => {

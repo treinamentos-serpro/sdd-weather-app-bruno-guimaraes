@@ -94,6 +94,150 @@ test.describe('Weather App — cidade não encontrada', () => {
   });
 });
 
+test.describe('Weather App — edge cases da spec', () => {
+  test('não envia busca vazia ou só com espaços e mantém o campo corrigível (AC-01.5)', async ({
+    page,
+  }) => {
+    const geocodingUrls: string[] = [];
+    await page.route('https://geocoding-api.open-meteo.com/**', (route) => {
+      geocodingUrls.push(route.request().url());
+      return route.fulfill({ json: geocodingResponse });
+    });
+    await page.route('https://api.open-meteo.com/**', (route) =>
+      route.fulfill({ json: forecastResponse }),
+    );
+    await page.goto('/');
+    const searchbox = page.getByRole('searchbox', { name: 'Cidade' });
+
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await expect(page.getByRole('alert')).toHaveText('Digite o nome de uma cidade para buscar.');
+    await expect(searchbox).toBeFocused();
+    await expect(searchbox).toHaveAttribute('aria-invalid', 'true');
+
+    await searchbox.fill('   ');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await searchbox.press('Enter');
+    await expect(page.getByRole('alert')).toHaveText('Digite o nome de uma cidade para buscar.');
+    await expect(searchbox).toBeEditable();
+    expect(geocodingUrls).toEqual([]);
+
+    await searchbox.fill('São Paulo');
+    await searchbox.press('Enter');
+    await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeVisible();
+    expect(geocodingUrls).toHaveLength(1);
+  });
+
+  test('envia caracteres especiais codificados, sem espaços externos (AC-01.6)', async ({
+    page,
+  }) => {
+    const query = "Sant'Ana & Côte-d’Or #2/3 + 100% ?count=99";
+    let requestedUrl: URL | undefined;
+    await page.route('https://geocoding-api.open-meteo.com/**', (route) => {
+      requestedUrl = new URL(route.request().url());
+      return route.fulfill({ json: geocodingResponse });
+    });
+    await page.route('https://api.open-meteo.com/**', (route) =>
+      route.fulfill({ json: forecastResponse }),
+    );
+    await page.goto('/');
+
+    await page.getByRole('searchbox', { name: 'Cidade' }).fill(`  ${query}  `);
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+    await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeVisible();
+    expect(requestedUrl?.searchParams.getAll('name')).toEqual([query]);
+    expect(requestedUrl?.searchParams.getAll('count')).toEqual(['10']);
+    expect(requestedUrl?.hash).toBe('');
+  });
+
+  for (const body of [{}, { results: [] }]) {
+    test(`geocoding sem resultados (${JSON.stringify(body)}) é estado vazio e permite nova busca (AC-01.4)`, async ({
+      page,
+    }) => {
+      let geocodingCalls = 0;
+      await page.route('https://geocoding-api.open-meteo.com/**', (route) => {
+        geocodingCalls += 1;
+        return route.fulfill({ json: geocodingCalls === 1 ? body : geocodingResponse });
+      });
+      await page.route('https://api.open-meteo.com/**', (route) =>
+        route.fulfill({ json: forecastResponse }),
+      );
+      await page.goto('/');
+      const searchbox = page.getByRole('searchbox', { name: 'Cidade' });
+
+      await searchbox.fill('Cidadeinexistente');
+      await searchbox.press('Enter');
+
+      await expect(page.getByRole('heading', { name: 'Nenhuma cidade encontrada' })).toBeVisible();
+      await expect(page.getByRole('alert')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Tentar novamente' })).toHaveCount(0);
+      await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
+      await expect(searchbox).toBeEditable();
+
+      await searchbox.fill('São Paulo');
+      await searchbox.press('Enter');
+      await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeVisible();
+      await expect(page.getByText('Nenhuma cidade encontrada')).toHaveCount(0);
+    });
+  }
+
+  test('previsão sem dados diários mantém cinco dias marcados como Indisponível (AC-03.5)', async ({
+    page,
+  }) => {
+    await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
+      route.fulfill({ json: geocodingResponse }),
+    );
+    await page.route('https://api.open-meteo.com/**', (route) =>
+      route.fulfill({ json: { ...forecastResponse, daily: {} } }),
+    );
+    await page.goto('/');
+
+    await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+    await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
+    const cards = page.getByRole('region', { name: 'Previsão de 5 dias' }).getByRole('listitem');
+    await expect(cards).toHaveCount(5);
+    for (const [index, date] of ['10/01', '11/01', '12/01', '13/01', '14/01'].entries()) {
+      await expect(cards.nth(index).getByText(date)).toBeVisible();
+      await expect(cards.nth(index).getByText('Indisponível')).toHaveCount(4);
+      await expect(cards.nth(index).getByText(/°C/)).toHaveCount(0);
+    }
+  });
+
+  test('previsão sem nenhum dado válido é falha com retry, sem valores (AC-05.6)', async ({
+    page,
+  }) => {
+    let forecastCalls = 0;
+    await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
+      route.fulfill({ json: geocodingResponse }),
+    );
+    await page.route('https://api.open-meteo.com/**', (route) => {
+      forecastCalls += 1;
+      return route.fulfill({
+        json:
+          forecastCalls === 1
+            ? { current: { time: '2026-01-10T12:00' }, daily: {} }
+            : forecastResponse,
+      });
+    });
+    await page.goto('/');
+
+    await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+    await expect(page.getByRole('alert')).toContainText(
+      'Os dados recebidos estão incompletos ou em formato inesperado.',
+    );
+    await expect(page.getByText('Indisponível')).toHaveCount(0);
+    await expect(page.getByText('Nenhuma cidade encontrada')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Tentar novamente' }).click();
+    await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
+    expect(forecastCalls).toBe(2);
+  });
+});
+
 test.describe('Weather App — viewport mobile (375x812)', () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
