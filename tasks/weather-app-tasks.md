@@ -340,9 +340,11 @@ de UI no App. Os estados independentes permanecem fora deste recorte do hook.
 - **Dependências:** T-04, T-19.
 - **Arquivos prováveis:** `src/components/CitySearch.tsx`,
   `src/components/SearchBar.tsx`.
-- **Entrega parcial:** `SearchBar` implementa campo acessível, envio explícito
-  com trim, orientação para consulta em branco e bloqueio por `disabled`.
-  Seleção de opções e estados de rede continuam pendentes nesta tarefa.
+- **Entrega implementada:** `SearchBar` implementa campo acessível, envio
+  explícito com trim e orientação para consulta em branco. `CityResults`
+  preserva a ordem, exibe contexto e coordenadas desambiguadoras e permite
+  seleção por teclado ou mouse. A busca pode ser substituída durante geocoding;
+  resultados obsoletos são descartados.
 - **Tipo:** UI.
 - **Rastreabilidade:** FR-01, FR-05, FR-06; AC-01.1 a AC-01.7, AC-05.2,
   AC-06.1, AC-06.3.
@@ -353,24 +355,26 @@ de UI no App. Os estados independentes permanecem fora deste recorte do hook.
   `ErrorState` (`message` e callback `onRetry`, com botão "Tentar novamente") e
   `EmptyState` (`title` e `hint`) em `src/components/states/`. Os componentes
   seguem o tema glass e têm testes de renderização e retry por clique/teclado.
-  A composição com busca e previsão permanece pendente em T-21/T-23/T-26;
+  A composição integrada usa esses estados para busca e previsão;
   `EmptyState` destina-se à busca sem correspondências, não à falha meteorológica.
 - **Recorte da previsão:** Implementar `ForecastList` e `ForecastCard` com grid
   2/3/5 colunas, rótulos e datas por `lib/format`, ícone/descrição WMO,
   máxima/mínima na unidade selecionada e probabilidade de chuva opcional em
   `ForecastDay`. Validar conversão sem mutação, calendário local independente
   do dispositivo, campos ausentes/inválidos, limites de probabilidade e lista
-  vazia. Atualizar o mock com probabilidades ilustrativas. Rede, normalização,
-  atualidade e atribuição continuam pendentes na composição de resultados.
+  vazia.   Atualizar o mock com probabilidades ilustrativas. A composição integrada
+  consome os dados normalizados do serviço, incluindo horário de referência,
+  atualidade e atribuição da fonte.
 - **Recorte do hero:** Implementar `src/components/CurrentWeather.tsx` com
   `city`, `current` e `unit`, temperatura em destaque, ícone WMO, condição e
   métricas opcionais (umidade, vento, precipitação e pressão). Criar os
   utilitários de T-09/T-11 e ampliar o contrato de T-04 sem quebrar consumidores.
   Validar Celsius/Fahrenheit, empates negativos, códigos desconhecidos,
   métricas zero, ausentes e inválidas, além de identificação acessível da cidade.
-  Atualizar o mock para demonstrar as quatro métricas. Este recorte não conclui
-  T-23: previsão, estados de rede, atualidade e atribuição continuam pendentes;
-  ampliar a consulta/normalização da API em T-13/T-17 permanece fora da entrega.
+  Atualizar o mock para demonstrar as quatro métricas. O hero integrado também
+  apresenta horário local da fonte e indicação de desatualização quando o
+  horário e o deslocamento UTC são válidos; a composição de resultados inclui
+  atribuição Open-Meteo.
 - **Descrição:** Apresentar cidade, condições atuais, cinco dias, campos
   indisponíveis, referência temporal e atribuição da fonte.
 - **Critérios de aceite:**
@@ -445,10 +449,12 @@ de UI no App. Os estados independentes permanecem fora deste recorte do hook.
   passar `data` aos componentes de apresentação em sucesso. Exibir a mensagem
   de erro e conectar `ErrorState` a `retry`. Manter `unit` no App, preservada
   entre estados e passada ao hero e à previsão; alternar sem nova requisição.
-  Bloquear a busca durante loading, mantendo a unidade disponível. Cobrir os
-  estados e o retry de busca/previsão com serviços simulados e adaptar o E2E
-  responsivo com interceptação da rede. Este recorte substitui o demonstrativo
-  abaixo; seleção manual e estados independentes ainda permanecem pendentes.
+  Manter a busca disponível durante geocoding para permitir substituir uma
+  consulta em andamento; bloqueá-la durante a previsão e manter a unidade
+  disponível. Preservar as opções para permitir selecionar outra cidade durante
+  a previsão. Cobrir os estados, seleção, concorrência e retry de busca/previsão
+  com serviços simulados e E2E responsivo com interceptação da rede. Este
+  recorte substitui o demonstrativo abaixo.
 - **Recorte de UI mock (pré-integração):** Montar header com marca, SearchBar e
   UnitToggle e conteúdo com CurrentWeather, ForecastList e estados existentes.
   Iniciar em `success` com São Paulo; disponibilizar seletor acessível para

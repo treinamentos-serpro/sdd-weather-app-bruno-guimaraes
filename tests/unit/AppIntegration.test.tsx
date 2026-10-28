@@ -76,6 +76,15 @@ async function searchSaoPaulo(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
 }
 
+async function selectSaoPaulo(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: /São Paulo/ }));
+}
+
+async function searchAndSelectSaoPaulo(user: ReturnType<typeof userEvent.setup>) {
+  await searchSaoPaulo(user);
+  await selectSaoPaulo(user);
+}
+
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
@@ -92,7 +101,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await searchSaoPaulo(user);
+    await searchAndSelectSaoPaulo(user);
 
     expect(await screen.findByRole('alert')).toBeVisible();
     expect(screen.queryByText('Nenhuma cidade encontrada')).not.toBeInTheDocument();
@@ -118,7 +127,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     expect(announcer).not.toHaveTextContent(/./);
     expect(main).not.toContainElement(announcer);
 
-    await searchSaoPaulo(user);
+    await searchAndSelectSaoPaulo(user);
 
     expect(await screen.findByRole('heading', { name: 'São Paulo' })).toHaveFocus();
     expect(main).toHaveAttribute('aria-busy', 'false');
@@ -130,7 +139,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await searchSaoPaulo(user);
+    await searchAndSelectSaoPaulo(user);
 
     expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('main')).toHaveFocus();
@@ -142,7 +151,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await searchSaoPaulo(user);
+    await searchAndSelectSaoPaulo(user);
     await user.click(await screen.findByRole('button', { name: 'Tentar novamente' }));
 
     expect(await screen.findByRole('heading', { name: 'São Paulo' })).toHaveFocus();
@@ -153,7 +162,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await searchSaoPaulo(user);
+    await searchAndSelectSaoPaulo(user);
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Não foi possível carregar a previsão do tempo. Não foi possível conectar ao serviço de clima.',
     );
@@ -189,6 +198,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     onLine.mockReturnValue(true);
     stubFetch([]);
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await selectSaoPaulo(user);
 
     expect(await screen.findByRole('heading', { name: 'São Paulo' })).toBeVisible();
     onLine.mockRestore();
@@ -200,7 +210,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<App />);
 
-    await searchSaoPaulo(user);
+    await searchAndSelectSaoPaulo(user);
     expect(await screen.findByText('Carregando...')).toBeVisible();
 
     await act(() => vi.advanceTimersByTimeAsync(10_000));
@@ -237,7 +247,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await searchSaoPaulo(user);
+    await searchAndSelectSaoPaulo(user);
 
     const hero = await screen.findByRole('region', { name: 'São Paulo' });
     expect(within(hero).getByLabelText('Temperatura: 20 °C')).toBeVisible();
@@ -268,7 +278,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     ]);
     const user = userEvent.setup();
     render(<App />);
-    await searchSaoPaulo(user);
+    await searchAndSelectSaoPaulo(user);
     await screen.findByRole('heading', { name: 'São Paulo' });
 
     await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
@@ -288,8 +298,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await searchSaoPaulo(user);
-
+    await searchAndSelectSaoPaulo(user);
     expect(await screen.findByRole('alert')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
@@ -315,6 +324,7 @@ describe('App integrado ao serviço (fetch stubado)', () => {
     expect(screen.queryByText('Nenhuma cidade encontrada')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await selectSaoPaulo(user);
 
     expect(await screen.findByRole('heading', { name: 'São Paulo' })).toBeVisible();
     expect(fetchMock.mock.calls[1][0]).toBe(fetchMock.mock.calls[0][0]);

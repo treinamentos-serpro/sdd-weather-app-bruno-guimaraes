@@ -8,15 +8,69 @@ interface CurrentWeatherProps {
   city: City;
   current: CurrentWeatherData;
   unit: Unit;
+  timeZone?: string | null;
+  utcOffsetSeconds?: number | null;
   headingRef?: Ref<HTMLHeadingElement>;
 }
 
-export default function CurrentWeather({ city, current, unit, headingRef }: CurrentWeatherProps) {
+function formatSourceLocalTime(value: string): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value);
+  if (!match) return null;
+
+  const [, year, month, day, hour, minute, seconds = '00'] = match;
+  const date = new Date(
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(seconds),
+    ),
+  );
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() !== Number(month) - 1 ||
+    date.getUTCDate() !== Number(day) ||
+    date.getUTCHours() !== Number(hour) ||
+    date.getUTCMinutes() !== Number(minute) ||
+    date.getUTCSeconds() !== Number(seconds)
+  ) {
+    return null;
+  }
+
+  return `${day}/${month}/${year} às ${hour}:${minute}`;
+}
+
+function isValidUtcOffset(value: number | null | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= 14 * 60 * 60;
+}
+
+export default function CurrentWeather({
+  city,
+  current,
+  unit,
+  timeZone,
+  utcOffsetSeconds,
+  headingRef,
+}: CurrentWeatherProps) {
   const headingId = useId();
   const condition = getWeatherCondition(current.weatherCode);
   const temperature = formatTemperature(current.temperatureCelsius, unit);
   const description = current.descriptionPtBr?.trim() || condition?.description || UNAVAILABLE;
   const location = [city.region, city.country].filter(Boolean).join(', ');
+  const sourceTimestamp = current.sourceLocalTime;
+  const sourceLocalTime =
+    typeof sourceTimestamp === 'string' ? formatSourceLocalTime(sourceTimestamp) : null;
+  const sourceTimestampMs =
+    typeof sourceTimestamp === 'string' && sourceLocalTime !== null
+      ? new Date(`${sourceTimestamp}${sourceTimestamp.length === 16 ? ':00' : ''}Z`).getTime()
+      : null;
+  const isStale =
+    sourceTimestampMs !== null &&
+    Number.isFinite(sourceTimestampMs) &&
+    isValidUtcOffset(utcOffsetSeconds) &&
+    Date.now() - (sourceTimestampMs - utcOffsetSeconds * 1000) > 2 * 60 * 60 * 1000;
   const metrics = [
     {
       label: 'Umidade',
@@ -46,6 +100,15 @@ export default function CurrentWeather({ city, current, unit, headingRef }: Curr
           {city.name}
         </h2>
         {location && <p className="mt-1 text-sm text-white/70">{location}</p>}
+        {sourceLocalTime && (
+          <div className="mt-2 text-sm text-white/70">
+            <p>
+              Dados observados em horário local
+              {timeZone && ` (${timeZone})`}: <time>{sourceLocalTime}</time>
+            </p>
+            {isStale && <p className="font-medium text-amber-200">Condições desatualizadas</p>}
+          </div>
+        )}
       </header>
 
       <div className="my-8 flex flex-wrap items-center gap-6 sm:gap-8">

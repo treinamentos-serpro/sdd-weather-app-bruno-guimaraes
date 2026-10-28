@@ -61,6 +61,7 @@ test('mantém layout e controles acessíveis a partir de 320 px', async ({ page 
     await page.getByRole('button', { name: 'Graus Fahrenheit' }).click();
     await page.getByRole('searchbox').fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await page.getByRole('button', { name: /São Paulo/ }).click();
     await expect(page.getByRole('heading', { name: 'São Paulo', exact: true })).toBeVisible();
     await expect(page.getByLabel('Temperatura: 76 °F')).toBeVisible();
     await expect(forecastCards).toHaveCount(5);

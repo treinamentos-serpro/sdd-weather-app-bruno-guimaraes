@@ -44,6 +44,10 @@ async function mockOpenMeteo(page: Page) {
   );
 }
 
+async function chooseCity(page: Page, name = 'São Paulo') {
+  await page.getByRole('button', { name: new RegExp(name) }).click();
+}
+
 test.describe('Weather App — fluxo de busca', () => {
   test.beforeEach(async ({ page }) => {
     await mockOpenMeteo(page);
@@ -53,6 +57,7 @@ test.describe('Weather App — fluxo de busca', () => {
   test('busca cidade, exibe previsão de 5 dias e converte para °F', async ({ page }) => {
     await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await chooseCity(page);
 
     await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeFocused();
@@ -95,6 +100,7 @@ test.describe('Weather App — fluxo de busca', () => {
 
     try {
       await search.click();
+      await chooseCity(page);
       await expect(main).toHaveAttribute('aria-busy', 'true');
       await expect(main).toBeFocused();
       await expect(search).toBeDisabled();
@@ -134,6 +140,147 @@ test.describe('Weather App — cidade não encontrada', () => {
 });
 
 test.describe('Weather App — edge cases da spec', () => {
+  test('descarta respostas de geocoding antigas quando uma nova busca termina primeiro (AC-01.7)', async ({
+    page,
+  }) => {
+    let releaseOldSearch!: () => void;
+    let finishOldResponse!: () => void;
+    const oldSearch = new Promise<void>((resolve) => {
+      releaseOldSearch = resolve;
+    });
+    const oldResponseFinished = new Promise<void>((resolve) => {
+      finishOldResponse = resolve;
+    });
+    let geocodingCalls = 0;
+    await page.route('https://geocoding-api.open-meteo.com/**', async (route) => {
+      geocodingCalls += 1;
+      const query = new URL(route.request().url()).searchParams.get('name');
+      if (query === 'Cidade antiga') {
+        await oldSearch;
+        await route.fulfill({
+          json: {
+            results: [
+              {
+                id: 1,
+                name: 'Cidade antiga',
+                latitude: 0,
+                longitude: 0,
+                country: 'Brasil',
+              },
+            ],
+          },
+        });
+        finishOldResponse();
+        return;
+      }
+      await route.fulfill({
+        json: {
+          results: [
+            {
+              id: 2,
+              name: 'Lisboa',
+              latitude: 38.72,
+              longitude: -9.14,
+              country: 'Portugal',
+              admin1: 'Lisboa',
+            },
+          ],
+        },
+      });
+    });
+    await page.route('https://api.open-meteo.com/**', (route) =>
+      route.fulfill({ json: forecastResponse }),
+    );
+    await page.goto('/');
+    const searchbox = page.getByRole('searchbox', { name: 'Cidade' });
+    await searchbox.fill('Cidade antiga');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await expect(searchbox).toBeEnabled();
+
+    await searchbox.fill('Lisboa');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await page.getByRole('button', { name: /Lisboa/ }).click();
+    await expect(page.getByRole('heading', { name: 'Lisboa', exact: true })).toBeVisible();
+
+    releaseOldSearch();
+    await oldResponseFinished;
+    await expect(page.getByRole('heading', { name: 'Lisboa', exact: true })).toBeVisible();
+    expect(geocodingCalls).toBe(2);
+    await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'false');
+  });
+
+  test('seleciona homônimas por teclado e descarta clima obsoleto (AC-01.1/01.2/01.2a/01.3/06.4/06.5)', async ({
+    page,
+  }) => {
+    const results = {
+      results: [
+        {
+          id: 1,
+          name: 'Springfield',
+          latitude: 39.799,
+          longitude: -89.644,
+          country: 'United States',
+          admin1: 'Illinois',
+        },
+        {
+          id: 2,
+          name: 'Springfield',
+          latitude: 42.101,
+          longitude: -72.589,
+          country: 'United States',
+          admin1: 'Illinois',
+        },
+      ],
+    };
+    let forecastCalls = 0;
+    let releaseFirstForecast!: () => void;
+    const firstForecast = new Promise<void>((resolve) => {
+      releaseFirstForecast = resolve;
+    });
+    const requestedCoordinates: string[] = [];
+
+    await page.route('https://geocoding-api.open-meteo.com/**', (route) =>
+      route.fulfill({ json: results }),
+    );
+    await page.route('https://api.open-meteo.com/**', async (route) => {
+      forecastCalls += 1;
+      const requestUrl = new URL(route.request().url());
+      requestedCoordinates.push(
+        `${requestUrl.searchParams.get('latitude')},${requestUrl.searchParams.get('longitude')}`,
+      );
+      if (forecastCalls === 1) {
+        await firstForecast;
+        await route.fulfill({ json: forecastResponse });
+        return;
+      }
+      await route.fulfill({
+        json: {
+          ...forecastResponse,
+          current: { ...forecastResponse.current, temperature_2m: 30 },
+        },
+      });
+    });
+    await page.goto('/');
+    await page.getByRole('searchbox', { name: 'Cidade' }).fill('Springfield');
+    await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+
+    const options = page.getByRole('list', { name: 'Resultados da busca' }).getByRole('button');
+    await expect(options).toHaveCount(2);
+    await expect(options.nth(0)).toContainText('Coordenadas: 39,799, -89,644');
+    await expect(options.nth(1)).toContainText('Coordenadas: 42,101, -72,589');
+    await options.nth(0).focus();
+    await page.keyboard.press('Enter');
+    await expect.poll(() => forecastCalls).toBe(1);
+    await expect(page.getByRole('main')).toHaveAttribute('aria-busy', 'true');
+    await options.nth(1).click();
+
+    await expect(page.getByLabel('Temperatura: 30 °C')).toBeVisible();
+    releaseFirstForecast();
+    await expect.poll(() => forecastCalls).toBe(2);
+    await expect(page.getByLabel('Temperatura: 30 °C')).toBeVisible();
+    expect(requestedCoordinates).toEqual(['39.799,-89.644', '42.101,-72.589']);
+  });
+
   test('não envia busca vazia ou só com espaços e mantém o campo corrigível (AC-01.5)', async ({
     page,
   }) => {
@@ -162,6 +309,7 @@ test.describe('Weather App — edge cases da spec', () => {
 
     await searchbox.fill('São Paulo');
     await searchbox.press('Enter');
+    await chooseCity(page);
     await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeVisible();
     expect(geocodingUrls).toHaveLength(1);
   });
@@ -182,6 +330,7 @@ test.describe('Weather App — edge cases da spec', () => {
 
     await page.getByRole('searchbox', { name: 'Cidade' }).fill(`  ${query}  `);
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await chooseCity(page);
 
     await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeVisible();
     expect(requestedUrl?.searchParams.getAll('name')).toEqual([query]);
@@ -215,6 +364,7 @@ test.describe('Weather App — edge cases da spec', () => {
 
       await searchbox.fill('São Paulo');
       await searchbox.press('Enter');
+      await chooseCity(page);
       await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeVisible();
       await expect(page.getByText('Nenhuma cidade encontrada')).toHaveCount(0);
     });
@@ -233,6 +383,7 @@ test.describe('Weather App — edge cases da spec', () => {
 
     await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await chooseCity(page);
 
     await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
     const cards = page.getByRole('region', { name: 'Previsão de 5 dias' }).getByRole('listitem');
@@ -264,6 +415,7 @@ test.describe('Weather App — edge cases da spec', () => {
 
     await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await chooseCity(page);
 
     await expect(page.getByRole('alert')).toContainText(
       'Os dados recebidos estão incompletos ou em formato inesperado.',
@@ -288,6 +440,7 @@ test.describe('Weather App — viewport mobile (375x812)', () => {
   test('busca cidade e renderiza o clima corretamente', async ({ page }) => {
     await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await chooseCity(page);
 
     await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeVisible();
     await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
@@ -321,6 +474,7 @@ test.describe('Weather App — falha da API e resposta parcial', () => {
 
     await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await chooseCity(page);
 
     await expect(page.getByRole('alert')).toContainText(
       'O serviço de clima está temporariamente indisponível.',
@@ -340,6 +494,7 @@ test.describe('Weather App — falha da API e resposta parcial', () => {
 
     await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await chooseCity(page);
 
     await expect(page.getByRole('alert')).toContainText(
       'Não foi possível conectar ao serviço de clima.',
@@ -372,6 +527,7 @@ test.describe('Weather App — falha da API e resposta parcial', () => {
     offline = false;
     await context.setOffline(false);
     await page.getByRole('button', { name: 'Tentar novamente' }).click();
+    await chooseCity(page);
 
     await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
     await expect(page.getByRole('alert')).toHaveCount(0);
@@ -396,6 +552,7 @@ test.describe('Weather App — falha da API e resposta parcial', () => {
 
     await page.getByRole('searchbox', { name: 'Cidade' }).fill('São Paulo');
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
+    await chooseCity(page);
 
     await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
     const cards = page.getByRole('region', { name: 'Previsão de 5 dias' }).getByRole('listitem');

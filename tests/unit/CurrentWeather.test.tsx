@@ -4,7 +4,10 @@ import CurrentWeather from '../../src/components/CurrentWeather';
 import { mockWeatherData } from '../../src/mocks/weather';
 import type { CurrentWeather as CurrentWeatherData } from '../../src/types/weather';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 const { city, current } = mockWeatherData;
 
@@ -146,5 +149,58 @@ describe('CurrentWeather', () => {
     expectMetric('Vento', '0 km/h');
     expectMetric('Precipitação', '0 mm');
     expectMetric('Pressão', 'Indisponível');
+  });
+
+  it('mostra o horário local e sinaliza desatualização somente após duas horas (AC-02.5)', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-27T19:00:00Z'));
+    const { rerender } = render(
+      <CurrentWeather
+        city={city}
+        current={{ ...current, sourceLocalTime: '2026-10-27T12:00' }}
+        unit="celsius"
+        timeZone="America/Sao_Paulo"
+        utcOffsetSeconds={-18_000}
+      />,
+    );
+
+    expect(screen.getByText(/horário local \(America\/Sao_Paulo\)/)).toBeVisible();
+    expect(screen.getByText('27/10/2026 às 12:00')).toBeVisible();
+    expect(screen.queryByText('Condições desatualizadas')).not.toBeInTheDocument();
+
+    vi.setSystemTime(new Date('2026-10-27T19:00:01Z'));
+    rerender(
+      <CurrentWeather
+        city={city}
+        current={{ ...current, sourceLocalTime: '2026-10-27T12:00' }}
+        unit="celsius"
+        timeZone="America/Sao_Paulo"
+        utcOffsetSeconds={-18_000}
+      />,
+    );
+    expect(screen.getByText('Condições desatualizadas')).toBeVisible();
+  });
+
+  it('não inventa horário nem atualidade para referência inválida ou sem offset (AC-02.6)', () => {
+    const { rerender } = render(
+      <CurrentWeather
+        city={city}
+        current={{ ...current, sourceLocalTime: '2026-02-30T12:00' }}
+        unit="celsius"
+        utcOffsetSeconds={-10_800}
+      />,
+    );
+    expect(screen.queryByText(/Dados observados em/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Condições desatualizadas')).not.toBeInTheDocument();
+
+    rerender(
+      <CurrentWeather
+        city={city}
+        current={{ ...current, sourceLocalTime: '2026-10-27T12:00' }}
+        unit="celsius"
+      />,
+    );
+    expect(screen.getByText('27/10/2026 às 12:00')).toBeVisible();
+    expect(screen.queryByText('Condições desatualizadas')).not.toBeInTheDocument();
   });
 });

@@ -123,9 +123,10 @@ teste independente.
 `disabled?: boolean` (padrão `false`). O formulário tem `role="search"`, label
 associado e envio por botão ou Enter. Consultas em branco exibem orientação
 acessível sem chamar `onSearch`; consultas válidas removem apenas espaços nas
-extremidades. `disabled` bloqueia edição e envio. O componente usa o tema
-glassmorphism e não consulta serviços; opções e estados de rede permanecem
-responsabilidade da composição de busca.
+extremidades. `disabled` bloqueia edição e envio. `CityResults` apresenta as
+opções na ordem da fonte, com contexto geográfico e coordenadas para homônimos
+indistinguíveis; cada opção é um botão acessível por teclado. Os componentes
+usam o tema glassmorphism e não consultam serviços.
 
 `CurrentWeather` implementa o hero de T-23 com props `city: City`,
 `current: CurrentWeather` e `unit: Unit`. Usa `lib/temperature` para formatar
@@ -140,27 +141,32 @@ Os campos opcionais `humidityPercent`, `windSpeedKmh`, `precipitationMm` e
 `pressureHpa` aceitam `number | null`, preservando consumidores existentes.
 Ausência, valores não finitos, umidade fora de 0–100, vento/precipitação negativos
 e pressão não positiva são exibidos como “Indisponível”. Métricas usam pt-BR com
-até uma casa decimal, nas unidades fixas %, km/h, mm e hPa. O componente é
-apenas de apresentação; loading/erro, horário/atualidade, atribuição e integração
-com a API continuam na composição de resultados e nas tarefas correspondentes.
+até uma casa decimal, nas unidades fixas %, km/h, mm e hPa. `CurrentWeather`
+também recebe o deslocamento UTC retornado pela fonte para apresentar o horário
+local de referência e sinalizar desatualização somente após duas horas; sem
+horário ou deslocamento válido, não classifica a atualidade.
 
 ## Data Model
 
 ### Composição de App integrada ao hook
 
-`App` consome `status`, `data`, `error`, `search` e `retry` de `useWeather`.
+`App` consome `status`, `activeOperation`, `cities`, `data`, `error`, `search`,
+`selectCity` e `retry` de `useWeather`.
 Mantém apenas `unit: Unit` (inicialmente Celsius) como estado local de UI.
 Não importa mocks nem oferece seletor demonstrativo. Reutiliza `SearchBar`,
-`UnitToggle`, `CurrentWeather`, `ForecastList` e os componentes de estado.
+`CityResults`, `UnitToggle`, `CurrentWeather`, `ForecastList` e os componentes
+de estado.
 
-`SearchBar.onSearch` encaminha a consulta ao hook; `ErrorState.onRetry` chama
-`retry` e apresenta a mensagem de erro recebida. A tela inicia em `idle` e
-loading desabilita a busca, não o controle de unidade. Somente `success` com
-dados apresenta condições atuais e previsão. `CurrentWeather` e `ForecastList`
-recebem os dados retornados e a mesma unidade, convertendo na renderização pelos
-utilitários existentes. As transições não alteram a unidade nem o toggle
-dispara requisições. A seleção automática da primeira cidade é o comportamento
-atual do hook; seleção manual e estados independentes são entregas posteriores.
+`SearchBar.onSearch` encaminha a consulta ao hook; `CityResults.onSelect` inicia
+a previsão pelas coordenadas da opção; `ErrorState.onRetry` chama `retry` e
+apresenta a mensagem recebida. O hook distingue busca e previsão em andamento
+por `activeOperation`, ignora respostas obsoletas e representa a escolha
+intermediária com `selecting`. A busca permanece habilitada durante geocoding,
+mas fica desabilitada durante previsão; o controle de unidade segue disponível.
+Somente `success` com dados apresenta condições atuais e previsão.
+`CurrentWeather` e `ForecastList` recebem os dados retornados e a mesma unidade,
+convertendo na renderização pelos utilitários existentes. As transições não
+alteram a unidade nem o toggle dispara requisições.
 
 O `main` mantém `aria-busy` durante loading e os anúncios ficam fora dele.
 Após sucesso, um efeito em `App`, dependente de status e dados, foca o título
@@ -174,9 +180,10 @@ simples ou componentes sem evidência de custo relevante.
 O header responsivo contém marca, busca e toggle; o conteúdo principal alterna
 os cenários sem manter resultados obsoletos visíveis. `main.tsx` monta `App`
 em StrictMode e importa `index.css` com as diretivas Tailwind e o tema global.
-Testes de composição usam serviços simulados para verificar os cinco estados,
-busca, retry da etapa que falhou, bloqueio durante loading e conversão de todas
-as temperaturas sem mutação dos dados. E2E intercepta geocoding e forecast.
+Testes de composição usam serviços simulados para verificar busca, seleção,
+estados de carregamento/vazio/erro/sucesso, retry da etapa que falhou,
+concorrência entre buscas/previsões e conversão de todas as temperaturas sem
+mutação dos dados. E2E intercepta geocoding e forecast.
 
 `ForecastList` recebe `forecast: ForecastDay[]` e `unit: Unit` e renderiza uma
 seção “Previsão de 5 dias” com lista ordenada no grid

@@ -20,6 +20,10 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
+async function selectCity(user: ReturnType<typeof userEvent.setup>, name = 'São Paulo') {
+  await user.click(await screen.findByRole('button', { name: new RegExp(name) }));
+}
+
 describe('App', () => {
   it('inicia em idle com busca e Celsius, sem dados ou controles de demonstração', () => {
     render(<App />);
@@ -51,6 +55,7 @@ describe('App', () => {
     expect(searchCities).not.toHaveBeenCalled();
 
     await user.type(screen.getByRole('searchbox'), '  Recife  {Enter}');
+    await selectCity(user, 'Recife');
     expect(await screen.findByRole('heading', { name: 'Recife' })).toBeVisible();
     expect(searchCities).toHaveBeenCalledExactlyOnceWith('Recife');
     expect(getWeather).toHaveBeenCalledExactlyOnceWith(city);
@@ -64,6 +69,7 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
     await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
+    await selectCity(user);
     expect(await screen.findByRole('heading', { name: 'São Paulo' })).toBeVisible();
 
     let resolveWeather!: (data: WeatherData) => void;
@@ -73,13 +79,14 @@ describe('App', () => {
       }),
     );
     await user.click(screen.getByRole('button', { name: 'Buscar' }));
+    await selectCity(user);
 
     expect(screen.getByText('Carregando...')).toBeVisible();
     expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('searchbox')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Buscar' })).toBeDisabled();
     expect(screen.queryByRole('heading', { name: 'São Paulo' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Resultados da busca' })).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
     await act(async () => resolveWeather(mockWeatherData));
 
@@ -94,6 +101,7 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
     await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
+    await selectCity(user);
     expect(await screen.findByRole('heading', { name: 'São Paulo' })).toHaveFocus();
 
     await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
@@ -104,6 +112,7 @@ describe('App', () => {
     vi.mocked(getWeather).mockResolvedValueOnce({ ...mockWeatherData, city });
     await user.clear(screen.getByRole('searchbox'));
     await user.type(screen.getByRole('searchbox'), 'Recife{Enter}');
+    await selectCity(user, 'Recife');
 
     expect(await screen.findByRole('heading', { name: 'Recife' })).toHaveFocus();
     expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
@@ -114,6 +123,7 @@ describe('App', () => {
     render(<App />);
     await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
     expect(await screen.findByRole('list')).toBeVisible();
+    await selectCity(user);
 
     vi.mocked(searchCities).mockResolvedValueOnce([]);
     await user.clear(screen.getByRole('searchbox'));
@@ -147,6 +157,7 @@ describe('App', () => {
     render(<App />);
     await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
     await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
+    if (operation === 'weather') await selectCity(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       operation === 'search' ? 'Falha ao buscar cidades.' : 'Falha ao consultar previsão.',
@@ -158,6 +169,7 @@ describe('App', () => {
     await user.clear(screen.getByRole('searchbox'));
     await user.type(screen.getByRole('searchbox'), 'Outro nome');
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    if (operation === 'search') await selectCity(user);
 
     expect(await screen.findByLabelText('Temperatura: 76 °F')).toBeVisible();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -172,6 +184,7 @@ describe('App', () => {
     const user = userEvent.setup();
     render(<App />);
     await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
+    await selectCity(user);
     expect(await screen.findByLabelText('Temperatura: 25 °C')).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
 

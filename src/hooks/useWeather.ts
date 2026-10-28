@@ -7,10 +7,12 @@ import {
 } from '../services/weatherService';
 import type { City, WeatherData } from '../types/weather';
 
-export type WeatherStatus = 'idle' | 'loading' | 'success' | 'error' | 'empty';
+export type WeatherStatus = 'idle' | 'loading' | 'selecting' | 'success' | 'error' | 'empty';
+export type WeatherOperationType = 'search' | 'weather';
 
 interface WeatherState {
   status: WeatherStatus;
+  activeOperation: WeatherOperationType | null;
   data: WeatherData | null;
   cities: City[];
   error: string | null;
@@ -25,6 +27,7 @@ type Operation = { type: 'search'; name: string } | { type: 'weather'; city: Cit
 
 const initialState: WeatherState = {
   status: 'idle',
+  activeOperation: null,
   data: null,
   cities: [],
   error: null,
@@ -52,6 +55,7 @@ export function useWeather() {
     setState((previous) => ({
       ...previous,
       status: 'loading',
+      activeOperation: operation.type,
       data: null,
       error: null,
       errorKind: null,
@@ -63,21 +67,34 @@ export function useWeather() {
       if (operation.type === 'search') {
         const cities = await searchCities(operation.name);
         if (id !== requestId.current) return;
-        const firstCity = cities[0];
-        if (!firstCity) {
-          setState((previous) => ({ ...previous, status: 'empty', cities }));
+        if (cities.length === 0) {
+          setState((previous) => ({
+            ...previous,
+            status: 'empty',
+            activeOperation: null,
+            cities,
+          }));
           return;
         }
-        city = firstCity;
-        setState((previous) => ({ ...previous, cities }));
-        lastOperation.current = { type: 'weather', city };
+        setState((previous) => ({
+          ...previous,
+          status: 'selecting',
+          activeOperation: null,
+          cities,
+        }));
+        return;
       } else {
         city = operation.city;
       }
 
       const data = await getWeather(city);
       if (id !== requestId.current) return;
-      setState((previous) => ({ ...previous, status: 'success', data }));
+      setState((previous) => ({
+        ...previous,
+        status: 'success',
+        activeOperation: null,
+        data,
+      }));
     } catch (error) {
       if (id !== requestId.current) return;
       // Só mensagens do service são amigáveis; qualquer outra falha usa texto genérico.
@@ -85,6 +102,7 @@ export function useWeather() {
       setState((previous) => ({
         ...previous,
         status: 'error',
+        activeOperation: null,
         error: isServiceError ? error.message : GENERIC_ERROR_MESSAGE,
         errorKind: isServiceError ? error.kind : 'unknown',
       }));

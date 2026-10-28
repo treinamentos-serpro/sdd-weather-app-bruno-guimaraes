@@ -120,21 +120,31 @@ Este recorte não conclui os fluxos reais de busca, seleção ou retry de FR-01/
 
 A integração substitui o recorte demonstrativo acima: a tela inicia em `idle`,
 sem dados mock ou seletor de estados, e encaminha a busca ao hook `useWeather`.
-Renderiza exclusivamente o estado corrente (`idle/loading/empty/error/success`),
-apresentando em sucesso as condições atuais e a previsão retornadas pelo hook.
-O erro apresenta a mensagem recebida e oferece retry da operação que falhou.
-A busca fica desabilitada durante loading; a unidade continua disponível,
-inicia em Celsius e é preservada em todas as transições, sem novas requisições
-ao alternar. Neste recorte, o hook consulta automaticamente a primeira cidade
-encontrada; a seleção manual e os estados independentes de busca/previsão
-permanecem pendentes para concluir FR-01.
+Após uma busca com resultados, apresenta as localidades na ordem da fonte,
+incluindo país e estado/região quando disponíveis e coordenadas quando
+necessárias para distinguir homônimos. O usuário seleciona uma opção antes da
+consulta meteorológica; a requisição usa as coordenadas dessa localidade.
+`selecting` representa esse passo entre busca concluída e previsão iniciada.
+O app também diferencia busca de previsão em andamento e descarta respostas
+obsoletas; durante a previsão mantém as opções de localidade disponíveis para
+selecionar outra cidade, sem exibir dados da seleção anterior. Busca vazia
+continua em `empty`, e erros apresentam a mensagem recebida com retry da
+operação que falhou.
+
+A busca permanece disponível durante uma busca em andamento para que uma
+consulta mais recente possa substituí-la; fica desabilitada durante a previsão.
+A unidade continua disponível, inicia em Celsius e é preservada em todas as
+transições, sem novas requisições ao alternar.
 
 Ao enviar uma busca ou tentar novamente, o foco vai para o conteúdo principal
 durante o carregamento. No sucesso, vai para o título da cidade somente se
 ainda estiver nesse conteúdo, sem interromper quem passou a usar outro controle.
 O estado ocupado é comunicado por `aria-busy` no conteúdo principal, com anúncios
 fora dessa região. Botões desabilitados não apresentam reação visual de hover;
-os controles habilitados mantêm feedback de hover e foco visível.
+os controles habilitados mantêm feedback de hover e foco visível. Os resultados
+exibem o horário local de referência das condições atuais e indicam dados
+desatualizados somente quando o horário da fonte tem mais de duas horas e o
+deslocamento UTC é válido. A atribuição Open-Meteo aparece junto aos dados.
 
 ## User Stories
 

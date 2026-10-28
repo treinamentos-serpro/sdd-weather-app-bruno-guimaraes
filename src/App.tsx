@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import CityResults from './components/CityResults';
 import CurrentWeather from './components/CurrentWeather';
 import ForecastList from './components/ForecastList';
 import SearchBar from './components/SearchBar';
@@ -10,7 +11,7 @@ import useWeather, { GENERIC_ERROR_MESSAGE } from './hooks/useWeather';
 import type { Unit } from './types/weather';
 
 export default function App() {
-  const { status, data, error, search, retry } = useWeather();
+  const { status, activeOperation, data, cities, error, search, selectCity, retry } = useWeather();
   const [unit, setUnit] = useState<Unit>('celsius');
   const mainRef = useRef<HTMLElement>(null);
   const resultHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -33,14 +34,21 @@ export default function App() {
     mainRef.current?.focus();
   }
 
+  function handleSelectCity(city: (typeof cities)[number]) {
+    selectCity(city);
+    mainRef.current?.focus();
+  }
+
   const announcement =
     status === 'loading'
       ? 'Carregando dados meteorológicos...'
-      : status === 'success' && data
-        ? `Clima de ${data.city.name} carregado.`
-        : status === 'empty'
-          ? 'Nenhuma cidade encontrada.'
-          : '';
+      : status === 'selecting'
+        ? 'Busca concluída. Selecione uma cidade.'
+        : status === 'success' && data
+          ? `Clima de ${data.city.name} carregado.`
+          : status === 'empty'
+            ? 'Nenhuma cidade encontrada.'
+            : '';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-night-900 via-night-800 to-night-900 font-sans text-white">
@@ -63,7 +71,10 @@ export default function App() {
               WeatherView
             </h1>
           </div>
-          <SearchBar onSearch={handleSearch} disabled={status === 'loading'} />
+          <SearchBar
+            onSearch={handleSearch}
+            disabled={status === 'loading' && activeOperation === 'weather'}
+          />
           <div className="justify-self-start lg:justify-self-end">
             <UnitToggle unit={unit} onChange={setUnit} />
           </div>
@@ -88,7 +99,13 @@ export default function App() {
               hint="Digite o nome de uma cidade e selecione Buscar para consultar o clima."
             />
           )}
-          {status === 'loading' && <LoadingState />}
+          {status === 'loading' && (
+            <>
+              <LoadingState />
+              {cities.length > 0 && <CityResults cities={cities} onSelect={handleSelectCity} />}
+            </>
+          )}
+          {status === 'selecting' && <CityResults cities={cities} onSelect={handleSelectCity} />}
           {status === 'empty' && (
             <EmptyState
               title="Nenhuma cidade encontrada"
@@ -104,9 +121,20 @@ export default function App() {
                 city={data.city}
                 current={data.current}
                 unit={unit}
+                timeZone={data.timeZone}
+                utcOffsetSeconds={data.utcOffsetSeconds}
                 headingRef={resultHeadingRef}
               />
               <ForecastList forecast={data.forecast} unit={unit} />
+              <p className="text-center text-sm text-white/60">
+                Dados meteorológicos por{' '}
+                <a
+                  href="https://open-meteo.com/"
+                  className="underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
+                >
+                  Open-Meteo
+                </a>
+              </p>
             </>
           )}
         </main>

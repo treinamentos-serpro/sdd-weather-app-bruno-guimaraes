@@ -50,23 +50,23 @@ describe('useWeather', () => {
     expect(getWeather).not.toHaveBeenCalled();
   });
 
-  it('normaliza a consulta, mantém a ordem das cidades e carrega a primeira', async () => {
+  it('normaliza a consulta e mantém as opções na ordem da fonte até a seleção', async () => {
     const { result } = renderHook(() => useWeather());
 
     await act(() => result.current.search('  São Paulo  '));
 
     expect(searchCities).toHaveBeenCalledExactlyOnceWith('São Paulo');
-    expect(getWeather).toHaveBeenCalledExactlyOnceWith(city);
+    expect(getWeather).not.toHaveBeenCalled();
     expect(result.current).toMatchObject({
-      status: 'success',
+      status: 'selecting',
       query: 'São Paulo',
       cities: [city, otherCity],
-      data: mockWeatherData,
+      data: null,
       error: null,
     });
   });
 
-  it('mantém loading durante a busca e durante a previsão', async () => {
+  it('mantém loading durante a busca e volta ao loading após selecionar uma cidade', async () => {
     const cities = deferred<City[]>();
     const weather = deferred<WeatherData>();
     vi.mocked(searchCities).mockReturnValue(cities.promise);
@@ -81,10 +81,14 @@ describe('useWeather', () => {
     expect(getWeather).not.toHaveBeenCalled();
 
     await act(async () => cities.resolve([city]));
-    expect(result.current.status).toBe('loading');
+    expect(result.current.status).toBe('selecting');
     expect(result.current.cities).toEqual([city]);
     expect(result.current.data).toBeNull();
 
+    act(() => {
+      request = result.current.selectCity(city);
+    });
+    expect(result.current.status).toBe('loading');
     await act(async () => {
       weather.resolve(mockWeatherData);
       await request;
@@ -103,6 +107,8 @@ describe('useWeather', () => {
     expect(getWeather).not.toHaveBeenCalled();
 
     await act(() => result.current.search('São Paulo'));
+    expect(result.current.status).toBe('selecting');
+    await act(() => result.current.selectCity(city));
     expect(result.current.status).toBe('success');
     expect(result.current.error).toBeNull();
     expect(result.current.errorKind).toBeNull();
@@ -111,7 +117,7 @@ describe('useWeather', () => {
   it('limpa dados anteriores e termina em empty quando não há cidades', async () => {
     const { result } = renderHook(() => useWeather());
     await act(() => result.current.search('São Paulo'));
-    vi.mocked(searchCities).mockResolvedValue([]);
+    vi.mocked(searchCities).mockResolvedValueOnce([]);
 
     await act(() => result.current.search('Inexistente'));
 
@@ -122,10 +128,12 @@ describe('useWeather', () => {
       data: null,
       error: null,
     });
-    expect(getWeather).toHaveBeenCalledTimes(1);
+    expect(getWeather).not.toHaveBeenCalled();
     await act(() => result.current.retry());
     expect(searchCities).toHaveBeenLastCalledWith('Inexistente');
     expect(searchCities).toHaveBeenCalledTimes(3);
+    expect(result.current.status).toBe('selecting');
+    expect(getWeather).not.toHaveBeenCalled();
   });
 
   it('seleciona outra cidade sem refazer geocoding e preserva a consulta e opções', async () => {
@@ -160,17 +168,18 @@ describe('useWeather', () => {
 
     await act(() => result.current.retry());
     expect(searchCities).toHaveBeenNthCalledWith(2, 'São Paulo');
-    expect(result.current.status).toBe('success');
+    expect(result.current.status).toBe('selecting');
     expect(result.current.error).toBeNull();
   });
 
-  it('retry de previsão automática repete somente a previsão e pode falhar novamente', async () => {
+  it('retry de previsão repete somente a cidade selecionada e pode falhar novamente', async () => {
     vi.mocked(getWeather)
       .mockRejectedValueOnce(networkError())
       .mockRejectedValueOnce(timeoutError());
     const { result } = renderHook(() => useWeather());
 
     await act(() => result.current.search('São Paulo'));
+    await act(() => result.current.selectCity(city));
     expect(result.current.status).toBe('error');
     expect(result.current.cities).toEqual([city, otherCity]);
     await act(() => result.current.retry());
@@ -258,10 +267,10 @@ describe('useWeather', () => {
       await request;
     });
 
-    expect(result.current.status).toBe('success');
+    expect(result.current.status).toBe('selecting');
     expect(result.current.query).toBe('Atual');
-    expect(result.current.data).toEqual(mockWeatherData);
-    expect(getWeather).toHaveBeenCalledTimes(1);
+    expect(result.current.data).toBeNull();
+    expect(getWeather).not.toHaveBeenCalled();
   });
 
   it.each(['success', 'error'] as const)('descarta previsão obsoleta com %s', async (outcome) => {

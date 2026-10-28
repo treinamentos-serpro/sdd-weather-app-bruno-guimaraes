@@ -122,14 +122,20 @@ começa na data de `current.sourceLocalTime`, não na data do dispositivo.
 Execute `pnpm dev` para abrir a aplicação integrada ao
 [useWeather](src/hooks/useWeather.ts). A tela inicia em `idle`, orientando a
 busca, e consulta a Open-Meteo após o envio de uma cidade. O hook carrega
-automaticamente a previsão da primeira localidade encontrada; a seleção manual
-entre localidades ainda não faz parte deste recorte. A tela apresenta loading,
+busca e apresenta as localidades encontradas em ordem para seleção explícita;
+opções homônimas com o mesmo contexto geográfico também exibem coordenadas.
+A previsão usa as coordenadas da localidade escolhida. A tela apresenta loading,
 vazio, erro ou os dados retornados, sem seletor de demonstração nem mock em
 produção. “Tentar novamente” repete a etapa que falhou com os mesmos parâmetros.
-Durante loading, a busca fica desabilitada, mas a troca de unidade continua
-ativa. A unidade é preservada nas transições e converte somente as temperaturas
-exibidas, sem novas requisições. Os mocks continuam disponíveis para desenvolver
-componentes e para testes sem rede real.
+É possível substituir uma busca ainda em andamento e selecionar outra localidade
+durante o carregamento da previsão; respostas obsoletas não substituem a seleção
+mais recente. A busca fica desabilitada durante a previsão, mas a troca de
+unidade continua ativa. A unidade é preservada nas transições e converte somente
+as temperaturas exibidas, sem novas requisições. Os resultados mostram o horário
+local da fonte e indicam condições desatualizadas após duas horas, quando a
+referência e o deslocamento UTC são válidos, além de atribuir os dados à
+Open-Meteo. Os mocks continuam disponíveis para desenvolver componentes e para
+testes sem rede real.
 
 ---
 
