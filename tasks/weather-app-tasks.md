@@ -806,6 +806,12 @@ de UI no App. Os estados independentes permanecem fora deste recorte do hook.
 - **Critérios de aceite:**
   - Ao enviar uma busca ou acionar “Tentar novamente”, o foco vai para o
     conteúdo principal em vez de se perder no `body` (WCAG 2.4.3).
+  - Após sucesso, o título da cidade recebe foco sem rolagem forçada somente
+    se o foco ainda estiver no conteúdo principal; não roubar foco do controle
+    de unidade ou de outro elemento. Cobrir busca, retry e preservação do foco.
+  - Botões de busca e retry têm transição de cores; hover só altera botões
+    habilitados. As duas opções de unidade têm feedback de hover coerente,
+    preservando o estado selecionado.
   - Loading, sucesso e “nenhuma cidade” são anunciados por uma região
     `role="status"` persistente fora do `main` com `aria-busy`; erros continuam
     com `role="alert"` (WCAG 4.1.3).
@@ -815,6 +821,7 @@ de UI no App. Os estados independentes permanecem fora deste recorte do hook.
   - A lista da previsão mantém a semântica de lista (`role="list"`).
 - **Dependências:** T-32, T-33.
 - **Arquivos prováveis:** `src/App.tsx`, `src/components/SearchBar.tsx`,
+  `src/components/CurrentWeather.tsx`, `src/components/states/ErrorState.tsx`,
   `src/components/UnitToggle.tsx`, `src/components/ForecastList.tsx`,
   `src/components/states/LoadingState.tsx`,
   `src/components/states/EmptyState.tsx`.

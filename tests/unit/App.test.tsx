@@ -87,6 +87,26 @@ describe('App', () => {
     expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
     expect(screen.getByRole('searchbox')).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Buscar' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Graus Fahrenheit' })).toHaveFocus();
+  });
+
+  it('foca cada novo resultado, mas não desloca o foco ao alternar unidade', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(screen.getByRole('searchbox'), 'São Paulo{Enter}');
+    expect(await screen.findByRole('heading', { name: 'São Paulo' })).toHaveFocus();
+
+    await user.click(screen.getByRole('button', { name: 'Graus Fahrenheit' }));
+    expect(screen.getByRole('button', { name: 'Graus Fahrenheit' })).toHaveFocus();
+
+    const city = { ...mockWeatherData.city, name: 'Recife' };
+    vi.mocked(searchCities).mockResolvedValueOnce([city]);
+    vi.mocked(getWeather).mockResolvedValueOnce({ ...mockWeatherData, city });
+    await user.clear(screen.getByRole('searchbox'));
+    await user.type(screen.getByRole('searchbox'), 'Recife{Enter}');
+
+    expect(await screen.findByRole('heading', { name: 'Recife' })).toHaveFocus();
+    expect(screen.getByRole('main')).toHaveAttribute('aria-busy', 'false');
   });
 
   it('apresenta empty sem resultados anteriores e permite uma nova busca', async () => {

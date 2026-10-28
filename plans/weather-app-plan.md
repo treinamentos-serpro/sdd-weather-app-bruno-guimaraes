@@ -162,6 +162,15 @@ utilitários existentes. As transições não alteram a unidade nem o toggle
 dispara requisições. A seleção automática da primeira cidade é o comportamento
 atual do hook; seleção manual e estados independentes são entregas posteriores.
 
+O `main` mantém `aria-busy` durante loading e os anúncios ficam fora dele.
+Após sucesso, um efeito em `App`, dependente de status e dados, foca o título
+de `CurrentWeather` por uma ref opcional, com `tabIndex={-1}` e sem rolagem
+forçada. A transferência ocorre apenas se o `main` ainda tiver foco; alternar
+unidade ou navegar para outro controle não deve deslocá-lo. Os botões de ação
+usam transição de cores e hover limitado ao estado habilitado. Os formatadores
+`Intl` já são reutilizados em `lib/format`; não adicionar memoização de cálculos
+simples ou componentes sem evidência de custo relevante.
+
 O header responsivo contém marca, busca e toggle; o conteúdo principal alterna
 os cenários sem manter resultados obsoletos visíveis. `main.tsx` monta `App`
 em StrictMode e importa `index.css` com as diretivas Tailwind e o tema global.

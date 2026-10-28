@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { type Ref, useId } from 'react';
 import { formatMeasurement, UNAVAILABLE } from '../lib/format';
 import { formatTemperature } from '../lib/temperature';
 import { getWeatherCondition } from '../lib/weatherCodes';
@@ -8,9 +8,10 @@ interface CurrentWeatherProps {
   city: City;
   current: CurrentWeatherData;
   unit: Unit;
+  headingRef?: Ref<HTMLHeadingElement>;
 }
 
-export default function CurrentWeather({ city, current, unit }: CurrentWeatherProps) {
+export default function CurrentWeather({ city, current, unit, headingRef }: CurrentWeatherProps) {
   const headingId = useId();
   const condition = getWeatherCondition(current.weatherCode);
   const temperature = formatTemperature(current.temperatureCelsius, unit);
@@ -36,7 +37,12 @@ export default function CurrentWeather({ city, current, unit }: CurrentWeatherPr
     >
       <header>
         <p className="text-sm font-medium text-accent-400">Clima atual</p>
-        <h2 id={headingId} className="mt-1 break-words text-2xl font-semibold sm:text-3xl">
+        <h2
+          ref={headingRef}
+          id={headingId}
+          tabIndex={-1}
+          className="mt-1 break-words rounded-lg text-2xl font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 sm:text-3xl"
+        >
           {city.name}
         </h2>
         {location && <p className="mt-1 text-sm text-white/70">{location}</p>}

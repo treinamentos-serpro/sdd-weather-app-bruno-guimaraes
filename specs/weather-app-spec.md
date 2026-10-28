@@ -129,6 +129,13 @@ ao alternar. Neste recorte, o hook consulta automaticamente a primeira cidade
 encontrada; a seleção manual e os estados independentes de busca/previsão
 permanecem pendentes para concluir FR-01.
 
+Ao enviar uma busca ou tentar novamente, o foco vai para o conteúdo principal
+durante o carregamento. No sucesso, vai para o título da cidade somente se
+ainda estiver nesse conteúdo, sem interromper quem passou a usar outro controle.
+O estado ocupado é comunicado por `aria-busy` no conteúdo principal, com anúncios
+fora dessa região. Botões desabilitados não apresentam reação visual de hover;
+os controles habilitados mantêm feedback de hover e foco visível.
+
 ## User Stories
 
 As personas abaixo são hipóteses de discovery e devem ser validadas com

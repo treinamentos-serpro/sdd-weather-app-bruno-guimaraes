@@ -55,6 +55,7 @@ test.describe('Weather App — fluxo de busca', () => {
     await page.getByRole('button', { name: 'Buscar', exact: true }).click();
 
     await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'São Paulo' })).toBeFocused();
     await expect(page.getByLabel('Temperatura: 20 °C')).toBeVisible();
 
     const forecast = page.getByRole('region', { name: 'Previsão de 5 dias' });
@@ -65,10 +66,48 @@ test.describe('Weather App — fluxo de busca', () => {
     const fahrenheit = page.getByRole('button', { name: 'Graus Fahrenheit' });
     await fahrenheit.click();
 
+    await expect(fahrenheit).toBeFocused();
     await expect(fahrenheit).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByLabel('Temperatura: 68 °F')).toBeVisible();
     await expect(forecast.getByText('77 °F')).toBeVisible();
     await expect(forecast.getByText('59 °F')).toBeVisible();
+  });
+
+  test('remove hover durante loading e preserva o foco escolhido antes da resposta', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'Hover depende de um dispositivo com ponteiro.');
+    let releaseForecast!: () => void;
+    const pendingForecast = new Promise<void>((resolve) => {
+      releaseForecast = resolve;
+    });
+    await page.route('https://api.open-meteo.com/**', async (route) => {
+      await pendingForecast;
+      await route.fulfill({ json: forecastResponse });
+    });
+    const search = page.getByRole('button', { name: 'Buscar', exact: true });
+    const main = page.getByRole('main');
+    await page.getByRole('searchbox').fill('São Paulo');
+    const background = await search.evaluate((button) => getComputedStyle(button).backgroundColor);
+    await search.hover();
+    await expect(search).not.toHaveCSS('background-color', background);
+
+    try {
+      await search.click();
+      await expect(main).toHaveAttribute('aria-busy', 'true');
+      await expect(main).toBeFocused();
+      await expect(search).toBeDisabled();
+      await expect(search).toHaveCSS('background-color', background);
+      await page.getByRole('button', { name: 'Graus Fahrenheit' }).click();
+    } finally {
+      releaseForecast();
+    }
+
+    await expect(page.getByRole('heading', { name: 'São Paulo', exact: true })).toBeVisible();
+    await expect(main).toHaveAttribute('aria-busy', 'false');
+    await expect(page.getByRole('button', { name: 'Graus Fahrenheit' })).toBeFocused();
+    await expect(page.getByLabel('Temperatura: 68 °F')).toBeVisible();
   });
 });
 

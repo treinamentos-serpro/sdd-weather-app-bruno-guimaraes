@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CurrentWeather from './components/CurrentWeather';
 import ForecastList from './components/ForecastList';
 import SearchBar from './components/SearchBar';
@@ -13,6 +13,13 @@ export default function App() {
   const { status, data, error, search, retry } = useWeather();
   const [unit, setUnit] = useState<Unit>('celsius');
   const mainRef = useRef<HTMLElement>(null);
+  const resultHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    if (status === 'success' && data && document.activeElement === mainRef.current) {
+      resultHeadingRef.current?.focus({ preventScroll: true });
+    }
+  }, [status, data]);
 
   // Busca e retry desabilitam/desmontam o controle focado; o foco vai para o main
   // para não se perder no body.
@@ -93,7 +100,12 @@ export default function App() {
           )}
           {status === 'success' && data && (
             <>
-              <CurrentWeather city={data.city} current={data.current} unit={unit} />
+              <CurrentWeather
+                city={data.city}
+                current={data.current}
+                unit={unit}
+                headingRef={resultHeadingRef}
+              />
               <ForecastList forecast={data.forecast} unit={unit} />
             </>
           )}
